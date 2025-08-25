@@ -1,0 +1,8 @@
+area:codespace-operator:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "charts/codespace-operator/**"
+
+release-lane:chart:
+  - changed-files:
+      - any-glob-to-any-file: ["charts/**"]

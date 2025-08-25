@@ -1,0 +1,4 @@
+{
+  "*.md": ["markdownlint --fix"],
+  "charts/*": ["helm lint $(dirname {file}"]
+}

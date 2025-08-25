@@ -1,0 +1,6 @@
+# Chart
+/charts/*/ @codespace-operator
+
+# Infra/docs
+/.github/ @codespace-operator/maintainers
+/*.md @codespace-operator/maintainers
