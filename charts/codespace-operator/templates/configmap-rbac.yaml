@@ -1,0 +1,35 @@
+# helm/templates/configmap-rbac.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: codespace-rbac-cm
+data:
+  model.conf: |
+    [request_definition]
+    r = sub, obj, act, dom
+
+    [policy_definition]
+    p = sub, obj, act, dom, eft
+
+    [role_definition]
+    g = _, _
+
+    [policy_effect]
+    e = some(where (p.eft == allow)) && !some(where (p.eft == deny))
+
+    [matchers]
+    m = (g(r.sub, p.sub) || r.sub == p.sub) &&
+        (r.obj == p.obj || keyMatch2(r.obj, p.obj)) &&
+        (r.act == p.act || keyMatch2(r.act, p.act) || regexMatch(r.act, p.act)) &&
+        (p.dom == "*" || r.dom == p.dom)
+
+  policy.csv: |
+    g, codespace-operator:admin,  admin
+    g, codespace-operator:editor, editor
+    g, codespace-operator:viewer, viewer
+
+    p, admin,  *,       *,                           *, allow
+    p, admin,  namespaces, list,                     *, allow
+    p, editor, session, (create|update|delete|scale|get|list|watch), *, allow
+    p, viewer, session, (get|list|watch),            *, allow
+

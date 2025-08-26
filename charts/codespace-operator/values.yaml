@@ -68,12 +68,23 @@ ingressClass:
 
 server:
   enabled: true
+  oidc:
+    issuer: ""            # e.g. https://dev-123456.okta.com
+    clientID: ""
+    clientSecret: ""
+    redirectURL: ""       # e.g. https://your.host/auth/callback
+    scopes: ["openid","profile","email"]
+  allowTokenParam: false
+  session:
+    ttlMinutes: 60
+    cookieName: ""        # optional override
   route:
     enabled: false
     annotations: {}
     tls:
       termination: edge
-  debug: false
+  logLevel: info
+  enableLocalLogin: true
   auth:
     # IMPORTANT: set a stable secret in prod; chart generates one if empty
     jwtSecret: "" # set for stable upgrades
@@ -85,7 +96,7 @@ server:
     pullPolicy: IfNotPresent
   env:
     # Same-origin by default; set to http://localhost:5173 only for local dev
-    allowOrigin: ""
+    allowOrigin: "*"
   service:
     type: ClusterIP
     annotations: {}
