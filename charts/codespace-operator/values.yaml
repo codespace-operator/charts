@@ -69,6 +69,7 @@ ingressClass:
 server:
   enabled: true
   oidc:
+    insecureSkipVerify: false
     issuer: ""            # e.g. https://dev-123456.okta.com
     clientID: ""
     clientSecret: ""
@@ -145,3 +146,11 @@ server:
     enabled: true
     allowIngressFromSameNamespace: true
     egressToKubeAPIServer: true
+
+  configs:
+    # SHA-512 hash with salt: openssl passwd -6 "yourpass"
+    localUsers: |
+      users:
+        - username: admin
+          passwordHash: "$$6$hDZOMQRBnH3gk5fU$5krq9XTy.rbkLNUUEmggUbYulK/Dp1.Y3gvn/pavqYGlyvB4qhPFmeFyOVEyOnnFowo8WW5tItiT0M1wChGtO."
+          email: admin@local.com

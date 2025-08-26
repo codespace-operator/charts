@@ -58,6 +58,8 @@ spec:
               value: "{{ .Values.server.oidc.issuer }}"
             - name: CODESPACE_SERVER_OIDC_CLIENT_ID
               value: "{{ .Values.server.oidc.clientID }}"
+            - name: CODESPACE_SERVER_OIDC_INSECURE_SKIP_VERIFY
+              value: "{{ .Values.server.oidc.insecureSkipVerify }}"
             - name: CODESPACE_SERVER_OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
@@ -75,10 +77,16 @@ spec:
               value: "{{ .Values.server.session.ttlMinutes }}"
             - name: CODESPACE_SERVER_SESSION_COOKIE
               value: "{{ .Values.server.session.cookieName }}"
+            - name: CODESPACE_SERVER_LOCAL_USERS_PATH
+              value: /etc/codespace-operator/local-users.yaml
           volumeMounts:
             - name: rbac
               mountPath: /etc/codespace-operator/rbac
               readOnly: true
+            - name: local-users-yaml
+              mountPath: /etc/codespace-operator/local-users.yaml
+              subPath: local-users.yaml
+              readOnly: true  # subject to change..?
           readinessProbe:
             httpGet:
               path: {{ .Values.server.probes.readinessPath | default "/readyz" }}
@@ -111,6 +119,9 @@ spec:
         - name: rbac
           configMap:
             name: codespace-rbac-cm
+        - name: local-users-yaml
+          secret:
+            secretName: {{ include "codespace-operator.server.name" . }}-local-users
       {{- with .Values.server.nodeSelector }}
       nodeSelector:
 {{ toYaml . | indent 8 }}
