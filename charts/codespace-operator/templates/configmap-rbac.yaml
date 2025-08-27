@@ -1,4 +1,3 @@
-# helm/templates/configmap-rbac.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -18,18 +17,44 @@ data:
     e = some(where (p.eft == allow)) && !some(where (p.eft == deny))
 
     [matchers]
-    m = (g(r.sub, p.sub) || r.sub == p.sub) &&
-        (r.obj == p.obj || keyMatch2(r.obj, p.obj)) &&
-        (r.act == p.act || keyMatch2(r.act, p.act) || regexMatch(r.act, p.act)) &&
-        (p.dom == "*" || r.dom == p.dom)
+    m = (g(r.sub, p.sub) || r.sub == p.sub) && (r.obj == p.obj || p.obj == "*") && (r.act == p.act || p.act == "*" || regexMatch(r.act, p.act)) && (p.dom == "*" || r.dom == p.dom || regexMatch(r.dom, p.dom))
+
 
   policy.csv: |
-    g, codespace-operator:admin,  admin
-    g, codespace-operator:editor, editor
+    # Role inheritance - Map external OIDC roles to internal roles
+    g, codespace-operator:admin, admin
+    g, codespace-operator:editor, editor  
     g, codespace-operator:viewer, viewer
 
-    p, admin,  *,       *,                           *, allow
-    p, admin,  namespaces, list,                     *, allow
-    p, editor, session, (create|update|delete|scale|get|list|watch), *, allow
-    p, viewer, session, (get|list|watch),            *, allow
+    # Admin permissions (full access everywhere)
+    p, admin, *, *, *, allow
+    p, admin, session, *, *, allow
+    p, admin, namespace, *, *, allow
 
+    # Editor permissions (CRUD sessions)
+    p, editor, session, get, *, allow
+    p, editor, session, list, *, allow
+    p, editor, session, watch, *, allow
+    p, editor, session, create, *, allow
+    p, editor, session, update, *, allow
+    p, editor, session, delete, *, allow
+    p, editor, session, scale, *, allow
+
+    # Viewer permissions (read-only)
+    p, viewer, session, get, *, allow
+    p, viewer, session, list, *, allow  
+    p, viewer, session, watch, *, allow
+
+    # Specific user permissions (examples)
+    p, alice@company.com, session, *, team-alpha, allow
+    p, bob@company.com, session, *, team-beta, allow
+
+    # Environment-specific restrictions (examples)
+    p, developer, session, get, dev-*, allow
+    p, developer, session, list, dev-*, allow
+    p, developer, session, create, dev-*, allow
+    p, developer, session, update, dev-*, allow
+    p, developer, session, delete, dev-*, deny
+
+    # Deny policies override allows
+    p, editor, session, delete, prod-*, deny
