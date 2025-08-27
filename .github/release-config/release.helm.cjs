@@ -19,7 +19,7 @@ module.exports = {
         { type: 'fix',    scope: /(^|,|\s)(operator|server)(?=,|\s|$)/, release: 'patch' },
         { type: 'perf',   scope: /(^|,|\s)(operator|server)(?=,|\s|$)/, release: 'patch' },
         { type: 'revert', scope: /(^|,|\s)(operator|server)(?=,|\s|$)/, release: 'patch' },
-        { type: /^(docs|chore|build|ci|test|refactor)$/, release: false }
+        { type: /^(docs|chore|build|ci|test|refactor|repo)$/, release: false }
       ]
     }],
     '@semantic-release/release-notes-generator',
