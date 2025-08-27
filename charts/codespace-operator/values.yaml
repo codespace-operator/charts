@@ -68,12 +68,24 @@ ingressClass:
 
 server:
   enabled: true
+  oidc:
+    insecureSkipVerify: false
+    issuer: ""            # e.g. https://dev-123456.okta.com
+    clientID: ""
+    clientSecret: ""
+    redirectURL: ""       # e.g. https://your.host/auth/callback
+    scopes: ["openid","profile","email"]
+  allowTokenParam: false
+  session:
+    ttlMinutes: 60
+    cookieName: ""        # optional override
   route:
     enabled: false
     annotations: {}
     tls:
       termination: edge
-  debug: false
+  logLevel: info
+  enableLocalLogin: true
   auth:
     # IMPORTANT: set a stable secret in prod; chart generates one if empty
     jwtSecret: "" # set for stable upgrades
@@ -85,7 +97,7 @@ server:
     pullPolicy: IfNotPresent
   env:
     # Same-origin by default; set to http://localhost:5173 only for local dev
-    allowOrigin: ""
+    allowOrigin: "*"
   service:
     type: ClusterIP
     annotations: {}
@@ -134,3 +146,11 @@ server:
     enabled: true
     allowIngressFromSameNamespace: true
     egressToKubeAPIServer: true
+
+  configs:
+    # SHA-512 hash with salt: openssl passwd -6 "yourpass"
+    localUsers: |
+      users:
+        - username: admin
+          passwordHash: "$$6$hDZOMQRBnH3gk5fU$5krq9XTy.rbkLNUUEmggUbYulK/Dp1.Y3gvn/pavqYGlyvB4qhPFmeFyOVEyOnnFowo8WW5tItiT0M1wChGtO."
+          email: admin@local.com

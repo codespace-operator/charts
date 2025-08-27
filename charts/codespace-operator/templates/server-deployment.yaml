@@ -32,8 +32,8 @@ spec:
               value: "8080"
             - name: CODESPACE_SERVER_ALLOW_ORIGIN
               value: "{{ .Values.server.env.allowOrigin }}"
-            - name: CODESPACE_SERVER_DEBUG
-              value: "{{ .Values.server.debug | default false }}"
+            - name: CODESPACE_SERVER_LOG_LEVEL
+              value: "{{ .Values.server.logLevel | default "info" }}"
             - name: CODESPACE_SERVER_JWT_SECRET
               valueFrom:
                 secretKeyRef:
@@ -49,6 +49,44 @@ spec:
                 secretKeyRef:
                   name: {{ include "codespace-operator.server.name" . }}-auth
                   key: bootstrap-password
+            # Optional overrides for RBAC file paths (usually not needed)
+            - name: CODESPACE_SERVER_RBAC_MODEL_PATH
+              value: "/etc/codespace-operator/rbac/model.conf"
+            - name: CODESPACE_SERVER_RBAC_POLICY_PATH
+              value: "/etc/codespace-operator/rbac/policy.csv"
+            - name: CODESPACE_SERVER_OIDC_ISSUER
+              value: "{{ .Values.server.oidc.issuer }}"
+            - name: CODESPACE_SERVER_OIDC_CLIENT_ID
+              value: "{{ .Values.server.oidc.clientID }}"
+            - name: CODESPACE_SERVER_OIDC_INSECURE_SKIP_VERIFY
+              value: "{{ .Values.server.oidc.insecureSkipVerify }}"
+            - name: CODESPACE_SERVER_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "codespace-operator.server.name" . }}-auth
+                  key: oidc-client-secret
+            - name: CODESPACE_SERVER_OIDC_REDIRECT_URL
+              value: "{{ .Values.server.oidc.redirectURL }}"
+            - name: CODESPACE_SERVER_OIDC_SCOPES
+              value: "{{ join "," .Values.server.oidc.scopes }}"
+            - name: CODESPACE_SERVER_ENABLE_LOCAL_LOGIN
+              value: "{{ .Values.server.enableLocalLogin }}"
+            - name: CODESPACE_SERVER_ALLOW_TOKEN_PARAM
+              value: "{{ .Values.server.allowTokenParam }}"
+            - name: CODESPACE_SERVER_SESSION_TTL_MINUTES
+              value: "{{ .Values.server.session.ttlMinutes }}"
+            - name: CODESPACE_SERVER_SESSION_COOKIE
+              value: "{{ .Values.server.session.cookieName }}"
+            - name: CODESPACE_SERVER_LOCAL_USERS_PATH
+              value: /etc/codespace-operator/local-users.yaml
+          volumeMounts:
+            - name: rbac
+              mountPath: /etc/codespace-operator/rbac
+              readOnly: true
+            - name: local-users-yaml
+              mountPath: /etc/codespace-operator/local-users.yaml
+              subPath: local-users.yaml
+              readOnly: true  # subject to change..?
           readinessProbe:
             httpGet:
               path: {{ .Values.server.probes.readinessPath | default "/readyz" }}
@@ -77,6 +115,13 @@ spec:
           securityContext:
 {{ toYaml . | indent 12 }}
           {{- end }}
+      volumes:
+        - name: rbac
+          configMap:
+            name: codespace-rbac-cm
+        - name: local-users-yaml
+          secret:
+            secretName: {{ include "codespace-operator.server.name" . }}-local-users
       {{- with .Values.server.nodeSelector }}
       nodeSelector:
 {{ toYaml . | indent 8 }}
