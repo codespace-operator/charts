@@ -13,7 +13,15 @@ spec:
   template:
     metadata:
       labels:
-{{ include "codespace-operator.selectorLabels" (dict "name" (printf "%s-server" (include "codespace-operator.name" .)) "root" .) | indent 8 }}
+{{- $base := include "codespace-operator.selectorLabels" (dict "name" (printf "%s-server" (include "codespace-operator.name" .)) "root" .) | fromYaml -}}
+{{- $labels := merge $base (default (dict) .Values.podLabels) (default (dict) .Values.server.podLabels) -}}
+{{ toYaml $labels | nindent 8 }}
+      {{- $anns := merge (dict) (default (dict) .Values.podAnnotations) (default (dict) .Values.server.podAnnotations) -}}
+      {{- if $anns }}
+      annotations:
+{{ toYaml $anns | nindent 8 }}
+      {{- end }}
+
     spec:
       serviceAccountName: {{ if .Values.server.useManagerServiceAccount }}{{ include "codespace-operator.serviceAccountName" . }}{{ else }}{{ include "codespace-operator.server.serviceAccountName" . }}{{ end }}
       {{- with .Values.server.securityContext }}
@@ -26,10 +34,12 @@ spec:
           imagePullPolicy: {{ .Values.server.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: {{ .Values.server.service.targetPort }}
           env:
+            - name: CODESPACE_SERVER_CLUSTER_SCOPE
+              value: "{{ .Values.server.clusterScope }}"
             - name: CODESPACE_SERVER_PORT
-              value: "8080"
+              value: "{{ .Values.server.service.targetPort }}"
             - name: CODESPACE_SERVER_ALLOW_ORIGIN
               value: "{{ .Values.server.env.allowOrigin }}"
             - name: CODESPACE_SERVER_LOG_LEVEL
@@ -79,6 +89,17 @@ spec:
               value: "{{ .Values.server.session.cookieName }}"
             - name: CODESPACE_SERVER_LOCAL_USERS_PATH
               value: /etc/codespace-operator/local-users.yaml
+            # Downward API
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: POD_UID
+              valueFrom: { fieldRef: { fieldPath: metadata.uid } }
+            - name: POD_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+            - name: POD_IP
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
+            - name: NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
           volumeMounts:
             - name: rbac
               mountPath: /etc/codespace-operator/rbac
@@ -90,7 +111,7 @@ spec:
           readinessProbe:
             httpGet:
               path: {{ .Values.server.probes.readinessPath | default "/readyz" }}
-              port: 8080
+              port: {{ .Values.server.service.targetPort }}
               scheme: HTTP
             initialDelaySeconds: 10
             periodSeconds: 10
@@ -100,7 +121,7 @@ spec:
           livenessProbe:
             httpGet:
               path: {{ .Values.server.probes.livenessPath | default "/healthz" }}
-              port: 8080
+              port: {{ .Values.server.service.targetPort }}
               scheme: HTTP
             initialDelaySeconds: 15
             periodSeconds: 30
