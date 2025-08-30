@@ -273,7 +273,7 @@ server:
       e = some(where (p.eft == allow)) && !some(where (p.eft == deny))
 
       [matchers]
-      m = (g(r.sub, p.sub) || r.sub == p.sub) && (r.obj == p.obj || p.obj == "*") && (r.act == p.act || p.act == "*" || regexMatch(r.act, p.act)) && (p.dom == "*" || r.dom == p.dom || keyMatch(r.dom, p.dom))
+      m = (g(r.sub, p.sub) || r.sub == p.sub) && (p.obj == "*"  || r.obj == p.obj) && (p.act == "*"  || regexMatch(r.act, p.act)) && (p.dom == "*"  || keyMatch2(r.dom, p.dom))
     
     # Casbin policy rules
     policy: |
@@ -289,6 +289,11 @@ server:
       # Example: specific OIDC user mapping
       # Format: oidc:{issuer-domain}~{path}:{user-id}
       # p, oidc:idp.example.com~oauth~v2:8f9a2c4d..., session, *, team-alpha, allow
+
+      # LOCAL USER ROLE MAPPINGS
+      g, local:admin, admin
+      g, local:alice, editor
+      g, local:bob, viewer
 
       # =============================================================================
       # ROLE-BASED PERMISSIONS
@@ -318,7 +323,6 @@ server:
       
       # Local admin user (bootstrap)
       p, local:admin, *, *, *, allow
-      p, local:admin, namespaces, *, *, allow
 
       # Example local users
       p, local:alice, session, *, *, allow
