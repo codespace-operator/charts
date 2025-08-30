@@ -7,10 +7,13 @@ module.exports = {
       'controller',
       'server',
       'ui',
+      'api',
       'oidc',
       'ldap',
       'rbac',
-      'api',
+      'helm',
+      'charts',
+      'chart',
       'repo',  // release, repo workflow rules etc
       'ci',     // ci workflow rules etc
       'test'

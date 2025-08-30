@@ -52,6 +52,7 @@ data:
 
     # Specific user permissions (examples)
     p, local:admin, *, *, *, allow
+    p, local:admin, namespaces, *, *, allow
     p, local:alice, session, *, *, allow
     p, local:bob, session, *, default, allow
 

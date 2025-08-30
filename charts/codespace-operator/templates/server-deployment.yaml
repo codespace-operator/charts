@@ -1,5 +1,3 @@
-# Fixed server-deployment.yaml - Replace your current template with this:
-
 {{- if .Values.server.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -49,6 +47,7 @@ spec:
                 secretKeyRef:
                   name: {{ include "codespace-operator.server.name" . }}-auth
                   key: jwt-secret
+            {{- if .Values.server.bootstrapLoginAllowed }}
             - name: CODESPACE_SERVER_BOOTSTRAP_USER
               valueFrom:
                 secretKeyRef:
@@ -59,12 +58,13 @@ spec:
                 secretKeyRef:
                   name: {{ include "codespace-operator.server.name" . }}-auth
                   key: bootstrap-password
+            {{- end }}
             - name: CODESPACE_SERVER_RBAC_MODEL_PATH
               value: "/etc/codespace-operator/rbac/model.conf"
             - name: CODESPACE_SERVER_RBAC_POLICY_PATH
               value: "/etc/codespace-operator/rbac/policy.csv"
-            - name: CODESPACE_SERVER_OIDC_ISSUER
-              value: "{{ .Values.server.oidc.issuer }}"
+            - name: CODESPACE_SERVER_OIDC_ISSUER_URL
+              value: "{{ .Values.server.oidc.issuerURL }}"
             - name: CODESPACE_SERVER_OIDC_CLIENT_ID
               value: "{{ .Values.server.oidc.clientID }}"
             - name: CODESPACE_SERVER_OIDC_INSECURE_SKIP_VERIFY
@@ -79,12 +79,12 @@ spec:
             - name: CODESPACE_SERVER_OIDC_SCOPES
               value: "{{ join "," .Values.server.oidc.scopes }}"
             - name: CODESPACE_SERVER_ENABLE_LOCAL_LOGIN
-              value: "{{ .Values.server.enableLocalLogin }}"
+              value: "{{ .Values.server.auth.enableLocalLogin }}"
             - name: CODESPACE_SERVER_ALLOW_TOKEN_PARAM
-              value: "{{ .Values.server.allowTokenParam }}"
+              value: "{{ .Values.server.auth.allowTokenParam }}"
             - name: CODESPACE_SERVER_SESSION_TTL_MINUTES
               value: "{{ .Values.server.session.ttlMinutes }}"
-            - name: CODESPACE_SERVER_SESSION_COOKIE
+            - name: CODESPACE_SERVER_SESSION_COOKIE_NAME
               value: "{{ .Values.server.session.cookieName }}"
             - name: CODESPACE_SERVER_LOCAL_USERS_PATH
               value: /etc/codespace-operator/local-users.yaml

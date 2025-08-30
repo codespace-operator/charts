@@ -84,13 +84,12 @@ server:
 
   oidc:
     insecureSkipVerify: false
-    issuer: "" # e.g. https://dev-123456.okta.com
+    issuerURL: "" # e.g. https://dev-123456.okta.com
     clientID: ""
     clientSecret: ""
     redirectURL: "" # e.g. https://your.host/auth/callback
     scopes: [openid, profile, email]
 
-  allowTokenParam: false
   session:
     ttlMinutes: 60
     cookieName: ""  # optional override
@@ -102,11 +101,13 @@ server:
       termination: edge
 
   logLevel: info
-  enableLocalLogin: true
 
   auth:
+    allowTokenParam: false  # allow ?access_token=... (NOT recommended)
+    enableLocalLogin: true
     # IMPORTANT: set a stable secret in prod; chart generates one if empty
     jwtSecret: "" # set for stable upgrades
+    bootstrapLoginAllowed: false
     bootstrapUser: admin # single local admin
     bootstrapPassword: admin # chart generates random if empty
   image:
@@ -179,8 +180,13 @@ server:
   # Password is a hash using openssl passwd -6 "string"
   configs:
     localUsers: |
-      # SHA-512 hash with salt: openssl passwd -6 "yourpass"
+      # to generate mkpasswd -m argon2id 'password' htpasswd from package `apache2-utils`
+      # htpasswd -nbBC 12 user 'password' | cut -d: -f2
+
+      # assign roles by using policy.csv
+      # i.e. if user is testuser then:
+      # p, local:testuser, *, *, *, *
       users:
-        - username: testuser
-          passwordHash: "$$6$hDZOMQRBnH3gk5fU$5krq9XTy.rbkLNUUEmggUbYulK/Dp1.Y3gvn/pavqYGlyvB4qhPFmeFyOVEyOnnFowo8WW5tItiT0M1wChGtO."
-          email: testuser@local.com
+        - username: user
+          passwordHash: $2y$12$nrT3P8qWNMR0ODZLvnn10eP/lgj2oSnh2vofHh4MzkoV9eUaz/WFG
+          email: user@localhost
