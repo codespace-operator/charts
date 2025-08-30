@@ -50,7 +50,7 @@ operator:
 
   image:
     repository: ghcr.io/codespace-operator/codespace-operator
-    tag: "{{chart.AppVersion}}"
+    tag: ""
     pullPolicy: IfNotPresent
 
   serviceAccount:
@@ -136,7 +136,7 @@ server:
 
   image:
     repository: ghcr.io/codespace-operator/codespace-server
-    tag: "{{chart.AppVersion}}"
+    tag: ""
     pullPolicy: IfNotPresent
 
   serviceAccount:
