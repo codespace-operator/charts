@@ -1,19 +1,40 @@
-{{- if and .Values.operator.metrics.enabled (ne .Values.operator.metrics.bindAddress "0") }}
+{{- if .Values.operator.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "codespace-operator.metrics.serviceName" . }}
+  name: {{ include "codespace.operator.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-{{ include "codespace-operator.labels" . | indent 4 }}
+    {{- include "codespace.operator.labels" . | nindent 4 }}
+  {{- $annotations := include "codespace.operator.annotations" . }}
+  {{- if $annotations }}
   annotations:
-{{ toYaml .Values.operator.metrics.service.annotations | indent 4 }}
+    {{- $annotations | nindent 4 }}
+  {{- end }}
 spec:
-  type: {{ .Values.operator.metrics.service.type }}
+  type: ClusterIP
   selector:
-{{ include "codespace-operator.selectorLabels" (dict "name" (include "codespace-operator.name" .) "root" .) | indent 4 }}
+    {{- include "codespace.selectorLabels" (dict "name" (include "codespace.name" .) "root" .) | nindent 4 }}
   ports:
-    - name: metrics
-      port: {{ .Values.operator.metrics.service.port }}
-      targetPort: {{ .Values.operator.metrics.service.targetPort }}
+    - name: health
+      port: 8081
+      targetPort: 8081
+      protocol: TCP
+    {{- if and .Values.operator.metrics.enabled .Values.operator.metrics.secure }}
+    - name: https-metrics
+      port: 8443
+      targetPort: 8443
+      protocol: TCP
+    {{- else if and .Values.operator.metrics.enabled (not .Values.operator.metrics.secure) }}
+    - name: http-metrics
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    {{- end }}
+    {{- if .Values.operator.webhook.enabled }}
+    - name: webhook
+      port: 9443
+      targetPort: 9443
+      protocol: TCP
+    {{- end }}
 {{- end }}

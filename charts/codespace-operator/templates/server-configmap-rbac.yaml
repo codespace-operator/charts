@@ -1,8 +1,8 @@
-{{- if and .Values.server.enabled (and (not .Values.server.useManagerServiceAccount) .Values.server.serviceAccount.create) }}
+{{- if .Values.server.enabled }}
 apiVersion: v1
-kind: ServiceAccount
+kind: ConfigMap
 metadata:
-  name: {{ include "codespace.server.serviceAccountName" . }}
+  name: {{ include "codespace.server.rbac.configMapName" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "codespace.server.labels" . | nindent 4 }}
@@ -11,5 +11,9 @@ metadata:
   annotations:
     {{- $annotations | nindent 4 }}
   {{- end }}
-automountServiceAccountToken: true
+data:
+  model.conf: |
+    {{- .Values.server.rbac.model | nindent 4 }}
+  policy.csv: |
+    {{- .Values.server.rbac.policy | nindent 4 }}
 {{- end }}

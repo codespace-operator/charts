@@ -1,9 +1,15 @@
-{{- if .Values.operator.enabled }}
-{{- if .Values.operator.rbac.create }}
+{{- if and .Values.operator.enabled .Values.operator.rbac.create }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "codespace-operator.fullname" . }}-sessioncontroller
+  name: {{ include "codespace.operator.name" . }}-sessioncontroller
+  labels:
+    {{- include "codespace.operator.labels" . | nindent 4 }}
+  {{- $annotations := include "codespace.operator.annotations" . }}
+  {{- if $annotations }}
+  annotations:
+    {{- $annotations | nindent 4 }}
+  {{- end }}
 rules:
   # Core resources
   - apiGroups: [""]
@@ -28,37 +34,57 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "codespace-operator.fullname" . }}-sessioncontroller
+  name: {{ include "codespace.operator.name" . }}-sessioncontroller
+  labels:
+    {{- include "codespace.operator.labels" . | nindent 4 }}
+  {{- $annotations := include "codespace.operator.annotations" . }}
+  {{- if $annotations }}
+  annotations:
+    {{- $annotations | nindent 4 }}
+  {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "codespace-operator.fullname" . }}-sessioncontroller
+  name: {{ include "codespace.operator.name" . }}-sessioncontroller
 subjects:
   - kind: ServiceAccount
-    name: {{ include "codespace-operator.serviceAccountName" . }}
+    name: {{ include "codespace.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "codespace-operator.fullname" . }}
+  name: {{ include "codespace.operator.name" . }}
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "codespace.operator.labels" . | nindent 4 }}
+  {{- $annotations := include "codespace.operator.annotations" . }}
+  {{- if $annotations }}
+  annotations:
+    {{- $annotations | nindent 4 }}
+  {{- end }}
 rules: []
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "codespace-operator.fullname" . }}
+  name: {{ include "codespace.operator.name" . }}
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "codespace.operator.labels" . | nindent 4 }}
+  {{- $annotations := include "codespace.operator.annotations" . }}
+  {{- if $annotations }}
+  annotations:
+    {{- $annotations | nindent 4 }}
+  {{- end }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "codespace-operator.serviceAccountName" . }}
+    name: {{ include "codespace.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: Role
-  name: {{ include "codespace-operator.fullname" . }}
+  name: {{ include "codespace.operator.name" . }}
   apiGroup: rbac.authorization.k8s.io
-{{- end }}
 {{- end }}

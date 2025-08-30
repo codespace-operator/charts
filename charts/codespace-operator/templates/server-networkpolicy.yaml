@@ -2,12 +2,19 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "codespace-operator.server.name" . }}
+  name: {{ include "codespace.server.name" . }}
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "codespace.server.labels" . | nindent 4 }}
+  {{- $annotations := include "codespace.server.annotations" . }}
+  {{- if $annotations }}
+  annotations:
+    {{- $annotations | nindent 4 }}
+  {{- end }}
 spec:
   podSelector:
     matchLabels:
-{{ include "codespace-operator.selectorLabels" (dict "name" (printf "%s-server" (include "codespace-operator.name" .)) "root" .) | indent 6 }}
+      {{- include "codespace.selectorLabels" (dict "name" (printf "%s-server" (include "codespace.name" .)) "root" .) | nindent 6 }}
   policyTypes: ["Ingress","Egress"]
   ingress:
   {{- if .Values.server.networkPolicy.allowIngressFromSameNamespace }}
@@ -26,12 +33,16 @@ spec:
         - protocol: TCP
           port: 53
     # Allow Kubernetes API access
+    {{- if .Values.server.networkPolicy.egressToKubeAPIServer }}
     - to: []
       ports:
         - protocol: TCP
           port: 443
         - protocol: TCP
           port: 6443
+    {{- end }}
     # Allow all egress for debugging
     - to: []
 {{- end }}
+
+---

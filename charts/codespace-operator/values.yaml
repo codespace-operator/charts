@@ -1,29 +1,64 @@
+# =============================================================================
+# GLOBAL CONFIGURATION
+# =============================================================================
 nameOverride: ""
 fullnameOverride: ""
-podLabels: {}
-podAnnotations: {}
 
+# Global labels applied to ALL resources (including pods)
+commonLabels: {}
+  # environment: production
+  # team: platform
+  # cost-center: engineering
+
+# Global annotations applied to ALL resources (including pods)
+commonAnnotations: {}
+  # company.com/owner: platform-team
+  # company.com/project: codespace-operator
+
+# Pod-specific labels (applied to ALL pods in addition to common labels)
+podLabels: {}
+  # sidecar.istio.io/inject: "true"
+  # network-policy: enabled
+
+# Pod-specific annotations (applied to ALL pods in addition to common annotations)
+podAnnotations: {}
+  # prometheus.io/scrape: "true"
+  # fluentd/parser: json
+
+# =============================================================================
+# OPERATOR CONFIGURATION
+# =============================================================================
 operator:
   enabled: true
-  podLabels: {}
-    # component: operator
+  replicaCount: 1
+
+  # Component-specific labels (merged with global labels)
+  labels: {}
     # tier: control-plane
 
-  podAnnotations: {}
+  # Component-specific annotations (merged with global annotations)
+  annotations: {}
     # operator-specific annotations
-  rbac:
-    create: true
+
+  # Pod-specific labels for operator (merged with global pod labels)
+  podLabels: {}
+    # component: session-controller
+
+  # Pod-specific annotations for operator (merged with global pod annotations)
+  podAnnotations: {}
+    # scheduler.alpha.kubernetes.io/preferred-durations: '1m'
 
   image:
     repository: ghcr.io/codespace-operator/codespace-operator
     tag: "{{chart.AppVersion}}"
     pullPolicy: IfNotPresent
 
-  replicaCount: 1
-
   serviceAccount:
     create: true
     name: ""
+
+  rbac:
+    create: true
 
   webhook:
     enabled: false
@@ -32,15 +67,18 @@ operator:
     certKey: tls.key
 
   metrics:
-    name: ""
     enabled: true
     secure: true
     bindAddress: :8443
     service:
       type: ClusterIP
+      name: ""
+      # Service-specific annotations (merged with component annotations)
       annotations: {}
+        # prometheus.io/scrape: "true"
+        # prometheus.io/port: "8443"
       port: 8443
-      targetPort: 443
+      targetPort: 8443
     serviceMonitor:
       enabled: false
       namespace: ""
@@ -48,8 +86,13 @@ operator:
       scrapeTimeout: 10s
       labels: {}
 
+  ingressClass:
+    enabled: false
+    name: codespace-operator
+    controller: k8s.io/ingress-controller/codespace-operator
 
   enableHTTP2: false
+  extraArgs: []
 
   resources:
     limits: {}
@@ -57,82 +100,126 @@ operator:
       cpu: 100m
       memory: 128Mi
 
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-
-  extraArgs: []
-
-
   securityContext: {}
   containerSecurityContext:
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: true
     runAsNonRoot: true
 
-  ingressClass:
-    enabled: false
-    name: codespace-operator
-    controller: k8s.io/ingress-controller/codespace-operator
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
+# =============================================================================
+# SERVER CONFIGURATION
+# =============================================================================
 server:
   enabled: true
-  podLabels: {}
-  podAnnotations: {}
-
   clusterScope: false
+  logLevel: info
 
-  oidc:
-    insecureSkipVerify: false
-    issuerURL: "" # e.g. https://dev-123456.okta.com
-    clientID: ""
-    clientSecret: ""
-    redirectURL: "" # e.g. https://your.host/auth/callback
-    scopes: [openid, profile, email]
+  # Component-specific labels (merged with global labels)
+  labels: {}
+    # tier: frontend
+
+  # Component-specific annotations (merged with global annotations)
+  annotations: {}
+    # server-specific annotations
+
+  # Pod-specific labels for server (merged with global pod labels)
+  podLabels: {}
+    # component: web-console
+
+  # Pod-specific annotations for server (merged with global pod annotations)
+  podAnnotations: {}
+    # config.linkerd.io/proxy-memory-limit: 128Mi
+
+  image:
+    repository: ghcr.io/codespace-operator/codespace-server
+    tag: "{{chart.AppVersion}}"
+    pullPolicy: IfNotPresent
+
+  serviceAccount:
+    create: true
+    name: ""
+    rbac:
+      create: true
+
+  # Use operator's service account instead of creating a separate one
+  useManagerServiceAccount: false
 
   session:
     ttlMinutes: 60
     cookieName: ""  # optional override
 
+  # =============================================================================
+  # AUTHENTICATION CONFIGURATION
+  # =============================================================================
+  auth:
+    # JWT settings
+    jwtSecret: ""  # set for stable upgrades, chart generates random if empty
+    
+    # Bootstrap admin account (for initial setup only)
+    bootstrapLoginAllowed: true
+    bootstrapUser: admin
+    bootstrapPassword: ""  # chart generates random if empty
+    
+    # Local user authentication
+    enableLocalLogin: true
+    allowTokenParam: false  # NOT recommended for production
+    
+    # OIDC/OAuth2 settings
+    oidc:
+      enabled: false
+      issuerURL: ""  # e.g. https://dev-123456.okta.com
+      clientID: ""
+      clientSecret: ""
+      redirectURL: ""  # e.g. https://your.host/auth/callback
+      scopes: [openid, profile, email]
+      insecureSkipVerify: false
+
+  # =============================================================================
+  # NETWORK AND ROUTING
+  # =============================================================================
+  service:
+    type: ClusterIP
+    name: ""
+    # Service-specific annotations (merged with component annotations)
+    annotations: {}
+      # service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    port: 8443
+    targetPort: 8443
+
+  ingress:
+    enabled: false
+    className: ""
+    # Ingress-specific annotations
+    annotations: {}
+      # nginx.ingress.kubernetes.io/rewrite-target: /
+      # cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: console.codespace.test
+        path: /
+    tls: []
+
+  # OpenShift route (alternative to ingress)
   route:
     enabled: false
     annotations: {}
     tls:
       termination: edge
 
-  logLevel: info
+  # Network security
+  networkPolicy:
+    enabled: true
+    allowIngressFromSameNamespace: true
+    egressToKubeAPIServer: true
 
-  auth:
-    allowTokenParam: false  # allow ?access_token=... (NOT recommended)
-    enableLocalLogin: true
-    # IMPORTANT: set a stable secret in prod; chart generates one if empty
-    jwtSecret: "" # set for stable upgrades
-    bootstrapLoginAllowed: false
-    bootstrapUser: admin # single local admin
-    bootstrapPassword: admin # chart generates random if empty
-  image:
-    repository: ghcr.io/codespace-operator/codespace-server
-    tag: "{{chart.AppVersion}}"
-    pullPolicy: IfNotPresent
-
+  # =============================================================================
+  # APPLICATION CONFIGURATION
+  # =============================================================================
   env:
-    # Same-origin by default; set to http://localhost:5173 only for local dev
-    allowOrigin: "*"
-  service:
-    type: ClusterIP
-    annotations: {}
-    name: "" # auto generate otherwise
-    port: 8443
-    targetPort: 8443 # container's port
-
-  ingress:
-    enabled: false
-    className: ""
-    annotations: {}
-    hosts:
-      - host: console.codespace.test
-        path: /
-    tls: []
+    allowOrigin: "*"  # Set to specific domain in production
 
   probes:
     readinessPath: /readyz
@@ -163,30 +250,111 @@ server:
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  useManagerServiceAccount: false
 
-  serviceAccount:
-    create: true
-    name: ""
-
+  # =============================================================================
+  # RBAC CONFIGURATION (Casbin-based authorization)
+  # =============================================================================
   rbac:
-    create: true
+    # ConfigMap name for RBAC files (auto-generated if empty)
+    configMapName: ""
+    
+    # Casbin model configuration
+    model: |
+      [request_definition]
+      r = sub, obj, act, dom
 
-  networkPolicy:
-    enabled: true
-    allowIngressFromSameNamespace: true
-    egressToKubeAPIServer: true
+      [policy_definition]
+      p = sub, obj, act, dom, eft
 
-  # Password is a hash using openssl passwd -6 "string"
-  configs:
-    localUsers: |
-      # to generate mkpasswd -m argon2id 'password' htpasswd from package `apache2-utils`
-      # htpasswd -nbBC 12 user 'password' | cut -d: -f2
+      [role_definition]
+      g = _, _
 
-      # assign roles by using policy.csv
-      # i.e. if user is testuser then:
-      # p, local:testuser, *, *, *, *
-      users:
-        - username: user
-          passwordHash: $2y$12$nrT3P8qWNMR0ODZLvnn10eP/lgj2oSnh2vofHh4MzkoV9eUaz/WFG
-          email: user@localhost
+      [policy_effect]
+      e = some(where (p.eft == allow)) && !some(where (p.eft == deny))
+
+      [matchers]
+      m = (g(r.sub, p.sub) || r.sub == p.sub) && (r.obj == p.obj || p.obj == "*") && (r.act == p.act || p.act == "*" || regexMatch(r.act, p.act)) && (p.dom == "*" || r.dom == p.dom || keyMatch(r.dom, p.dom))
+    
+    # Casbin policy rules
+    policy: |
+      # =============================================================================
+      # ROLE MAPPINGS - Map external identity providers to internal roles
+      # =============================================================================
+      
+      # OIDC/OAuth2 role mappings (adjust based on your IdP)
+      g, codespace-operator:admin, admin
+      g, codespace-operator:editor, editor  
+      g, codespace-operator:viewer, viewer
+      
+      # Example: specific OIDC user mapping
+      # Format: oidc:{issuer-domain}~{path}:{user-id}
+      # p, oidc:idp.example.com~oauth~v2:8f9a2c4d..., session, *, team-alpha, allow
+
+      # =============================================================================
+      # ROLE-BASED PERMISSIONS
+      # =============================================================================
+      
+      # Admin: Full system access
+      p, admin, *, *, *, allow
+      p, admin, namespaces, *, *, allow
+      
+      # Editor: Full session management
+      p, editor, session, get, *, allow
+      p, editor, session, list, *, allow
+      p, editor, session, watch, *, allow
+      p, editor, session, create, *, allow
+      p, editor, session, update, *, allow
+      p, editor, session, delete, *, allow
+      p, editor, session, scale, *, allow
+      
+      # Viewer: Read-only access
+      p, viewer, session, get, *, allow
+      p, viewer, session, list, *, allow
+      p, viewer, session, watch, *, allow
+
+      # =============================================================================
+      # USER-SPECIFIC PERMISSIONS
+      # =============================================================================
+      
+      # Local admin user (bootstrap)
+      p, local:admin, *, *, *, allow
+      p, local:admin, namespaces, *, *, allow
+
+      # Example local users
+      p, local:alice, session, *, *, allow
+      p, local:bob, session, *, default, allow
+
+      # =============================================================================
+      # ENVIRONMENT-BASED RESTRICTIONS
+      # =============================================================================
+
+      # Development environment access
+      p, developer, session, get, dev-*, allow
+      p, developer, session, list, dev-*, allow
+      p, developer, session, create, dev-*, allow
+      p, developer, session, update, dev-*, allow
+
+      # =============================================================================
+      # DENY POLICIES (Override allows)
+      # =============================================================================
+
+      # Prevent deletion in production environments
+      p, editor, session, delete, prod-*, deny
+      p, developer, session, delete, dev-*, deny
+
+  # =============================================================================
+  # LOCAL USER ACCOUNTS (when enableLocalLogin is true)
+  # =============================================================================
+  localUsers:
+    # Generate password hash using: htpasswd -nbBC 12 username 'password' | cut -d: -f2
+    # Or: openssl passwd -6 "password"
+    users:
+      - username: admin
+        email: admin@localhost
+        passwordHash: $2y$12$WaNTyvF.8Z0EIpRDGj0iMO3VbWMZRXQw7CxnytkzPJ55ZuktSZiHq # "password"
+      - username: alice
+        email: alice@example.com
+        passwordHash: $2y$12$wXq3k5ef11BHOvWyThMPhOi0izkZ1O8Ut18xyD8b479MbmP6X/Agq # "password"
+      - username: bob
+        email: bob@example.com
+        passwordHash: $2y$12$saPK7P3.sQTcHORPNku8h.JwDoznn1CSbQa1vZ6laCYYFNgMPovYy # "password"

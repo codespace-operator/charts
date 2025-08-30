@@ -1,8 +1,15 @@
-{{- if and .Values.server.enabled .Values.server.rbac.create }}
+{{- if and .Values.server.enabled .Values.server.serviceAccount.rbac.create (not .Values.server.useManagerServiceAccount) }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "codespace-operator.server.serviceAccountName" . }}
+  name: {{ include "codespace.server.serviceAccountName" . }}
+  labels:
+    {{- include "codespace.server.labels" . | nindent 4 }}
+  {{- $annotations := include "codespace.server.annotations" . }}
+  {{- if $annotations }}
+  annotations:
+    {{- $annotations | nindent 4 }}
+  {{- end }}
 rules:
   - apiGroups: [codespace.codespace.dev]
     resources: [sessions]
@@ -21,22 +28,36 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "codespace-operator.server.serviceAccountName" . }}
+  name: {{ include "codespace.server.serviceAccountName" . }}
+  labels:
+    {{- include "codespace.server.labels" . | nindent 4 }}
+  {{- $annotations := include "codespace.server.annotations" . }}
+  {{- if $annotations }}
+  annotations:
+    {{- $annotations | nindent 4 }}
+  {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "codespace-operator.server.serviceAccountName" . }}
+  name: {{ include "codespace.server.serviceAccountName" . }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "codespace-operator.server.serviceAccountName" . }}
+    name: {{ include "codespace.server.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "codespace-operator.server.serviceAccountName" . }}-configmaps
+  name: {{ include "codespace.server.serviceAccountName" . }}-configmaps
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "codespace.server.labels" . | nindent 4 }}
+  {{- $annotations := include "codespace.server.annotations" . }}
+  {{- if $annotations }}
+  annotations:
+    {{- $annotations | nindent 4 }}
+  {{- end }}
 rules:
   - apiGroups: [""]
     resources: ["configmaps"]
@@ -44,19 +65,26 @@ rules:
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get", "list", "watch"]
+
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "codespace-operator.server.serviceAccountName" . }}-configmaps
+  name: {{ include "codespace.server.serviceAccountName" . }}-configmaps
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "codespace.server.labels" . | nindent 4 }}
+  {{- $annotations := include "codespace.server.annotations" . }}
+  {{- if $annotations }}
+  annotations:
+    {{- $annotations | nindent 4 }}
+  {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ include "codespace-operator.server.serviceAccountName" . }}-configmaps
+  name: {{ include "codespace.server.serviceAccountName" . }}-configmaps
 subjects:
   - kind: ServiceAccount
-    name: {{ include "codespace-operator.server.serviceAccountName" . }}
+    name: {{ include "codespace.server.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
-
 {{- end }}

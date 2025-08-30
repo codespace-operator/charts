@@ -2,17 +2,22 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "codespace-operator.server.serviceName" . }}
+  name: {{ include "codespace.server.serviceName" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
-{{ include "codespace-operator.labels" . | indent 4 }}
+    {{- include "codespace.server.labels" . | nindent 4 }}
+  {{- $annotations := include "codespace.server.serviceAnnotations" . }}
+  {{- if $annotations }}
   annotations:
-{{ toYaml .Values.server.service.annotations | indent 4 }}
+    {{- $annotations | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.server.service.type }}
   selector:
-{{ include "codespace-operator.selectorLabels" (dict "name" (printf "%s-server" (include "codespace-operator.name" .)) "root" .) | indent 4 }}
+    {{- include "codespace.selectorLabels" (dict "name" (printf "%s-server" (include "codespace.name" .)) "root" .) | nindent 4 }}
   ports:
     - name: http
       port: {{ .Values.server.service.port }}
       targetPort: {{ .Values.server.service.targetPort }}
+      protocol: TCP
 {{- end }}

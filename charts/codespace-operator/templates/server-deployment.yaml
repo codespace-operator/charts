@@ -2,29 +2,45 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "codespace-operator.server.name" . }}
+  name: {{ include "codespace.server.name" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
-{{ include "codespace-operator.commonLabels" . | indent 4 }}
-    app.kubernetes.io/component: server
+    {{- include "codespace.server.labels" . | nindent 4 }}
+  {{- $annotations := include "codespace.server.annotations" . }}
+  {{- if $annotations }}
+  annotations:
+    {{- $annotations | nindent 4 }}
+  {{- end }}
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
-{{ include "codespace-operator.selectorLabels" (dict "name" (printf "%s-server" (include "codespace-operator.name" .)) "root" .) | indent 6 }}
+      {{- include "codespace.selectorLabels" (dict "name" (printf "%s-server" (include "codespace.name" .)) "root" .) | nindent 6 }}
   template:
     metadata:
       labels:
-{{ include "codespace-operator.server.podLabels" . | indent 8 }}
-      {{- $annotations := include "codespace-operator.server.podAnnotations" . }}
-      {{- if $annotations }}
+        {{- include "codespace.server.podLabels" . | nindent 8 }}
       annotations:
-{{ $annotations | indent 8 }}
-      {{- end }}
+        # Force restart on config changes
+        checksum/rbac: {{ include (print $.Template.BasePath "/server-configmap-rbac.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/server-secret.yaml") . | sha256sum }}
+        {{- if .Values.server.auth.enableLocalLogin }}
+        checksum/users: {{ include (print $.Template.BasePath "/server-users-secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- $podAnnotations := include "codespace.server.podAnnotations" . }}
+        {{- if $podAnnotations }}
+        {{- $podAnnotations | nindent 8 }}
+        {{- end }}
     spec:
-      serviceAccountName: {{ if .Values.server.useManagerServiceAccount }}{{ include "codespace-operator.serviceAccountName" . }}{{ else }}{{ include "codespace-operator.server.serviceAccountName" . }}{{ end }}
+      serviceAccountName: {{ if .Values.server.useManagerServiceAccount }}{{ include "codespace.serviceAccountName" . }}{{ else }}{{ include "codespace.server.serviceAccountName" . }}{{ end }}
       {{- with .Values.server.securityContext }}
       securityContext:
-{{ toYaml . | indent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
         - name: server
@@ -33,62 +49,98 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.server.service.targetPort }}
+              protocol: TCP
           env:
+            # =====================================================================
+            # CORE SERVER CONFIGURATION
+            # =====================================================================
             - name: CODESPACE_SERVER_CLUSTER_SCOPE
-              value: "{{ .Values.server.clusterScope }}"
+              value: {{ .Values.server.clusterScope | quote }}
             - name: CODESPACE_SERVER_PORT
-              value: "{{ .Values.server.service.targetPort }}"
-            - name: CODESPACE_SERVER_ALLOW_ORIGIN
-              value: "{{ .Values.server.env.allowOrigin }}"
+              value: {{ .Values.server.service.targetPort | quote }}
             - name: CODESPACE_SERVER_LOG_LEVEL
-              value: "{{ .Values.server.logLevel | default "info" }}"
+              value: {{ .Values.server.logLevel | quote }}
+            - name: CODESPACE_SERVER_ALLOW_ORIGIN
+              value: {{ .Values.server.env.allowOrigin | quote }}
+
+            # =====================================================================
+            # SESSION CONFIGURATION  
+            # =====================================================================
+            - name: CODESPACE_SERVER_SESSION_TTL_MINUTES
+              value: {{ .Values.server.session.ttlMinutes | quote }}
+            {{- if .Values.server.session.cookieName }}
+            - name: CODESPACE_SERVER_SESSION_COOKIE
+              value: {{ .Values.server.session.cookieName | quote }}
+            {{- end }}
+
+            # =====================================================================
+            # AUTHENTICATION CONFIGURATION
+            # =====================================================================
             - name: CODESPACE_SERVER_JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "codespace-operator.server.name" . }}-auth
+                  name: {{ include "codespace.server.name" . }}-auth
                   key: jwt-secret
-            {{- if .Values.server.bootstrapLoginAllowed }}
+            - name: CODESPACE_SERVER_ENABLE_LOCAL_LOGIN
+              value: {{ .Values.server.auth.enableLocalLogin | quote }}
+            - name: CODESPACE_SERVER_ALLOW_TOKEN_PARAM
+              value: {{ .Values.server.auth.allowTokenParam | quote }}
+
+            # Bootstrap admin (if enabled)
+            {{- if .Values.server.auth.bootstrapLoginAllowed }}
+            - name: CODESPACE_SERVER_BOOTSTRAP_LOGIN_ALLOWED
+              value: "true"
             - name: CODESPACE_SERVER_BOOTSTRAP_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "codespace-operator.server.name" . }}-auth
+                  name: {{ include "codespace.server.name" . }}-auth
                   key: bootstrap-user
             - name: CODESPACE_SERVER_BOOTSTRAP_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "codespace-operator.server.name" . }}-auth
+                  name: {{ include "codespace.server.name" . }}-auth
                   key: bootstrap-password
+            {{- else }}
+            - name: CODESPACE_SERVER_BOOTSTRAP_LOGIN_ALLOWED
+              value: "false"
             {{- end }}
-            - name: CODESPACE_SERVER_RBAC_MODEL_PATH
-              value: "/etc/codespace-operator/rbac/model.conf"
-            - name: CODESPACE_SERVER_RBAC_POLICY_PATH
-              value: "/etc/codespace-operator/rbac/policy.csv"
-            - name: CODESPACE_SERVER_OIDC_ISSUER_URL
-              value: "{{ .Values.server.oidc.issuerURL }}"
+
+            # OIDC/OAuth2 configuration
+            {{- if .Values.server.auth.oidc.enabled }}
+            - name: CODESPACE_SERVER_OIDC_ISSUER
+              value: {{ .Values.server.auth.oidc.issuerURL | quote }}
             - name: CODESPACE_SERVER_OIDC_CLIENT_ID
-              value: "{{ .Values.server.oidc.clientID }}"
+              value: {{ .Values.server.auth.oidc.clientID | quote }}
             - name: CODESPACE_SERVER_OIDC_INSECURE_SKIP_VERIFY
-              value: "{{ .Values.server.oidc.insecureSkipVerify }}"
+              value: {{ .Values.server.auth.oidc.insecureSkipVerify | quote }}
             - name: CODESPACE_SERVER_OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "codespace-operator.server.name" . }}-auth
+                  name: {{ include "codespace.server.name" . }}-auth
                   key: oidc-client-secret
             - name: CODESPACE_SERVER_OIDC_REDIRECT_URL
-              value: "{{ .Values.server.oidc.redirectURL }}"
+              value: {{ .Values.server.auth.oidc.redirectURL | quote }}
             - name: CODESPACE_SERVER_OIDC_SCOPES
-              value: "{{ join "," .Values.server.oidc.scopes }}"
-            - name: CODESPACE_SERVER_ENABLE_LOCAL_LOGIN
-              value: "{{ .Values.server.auth.enableLocalLogin }}"
-            - name: CODESPACE_SERVER_ALLOW_TOKEN_PARAM
-              value: "{{ .Values.server.auth.allowTokenParam }}"
-            - name: CODESPACE_SERVER_SESSION_TTL_MINUTES
-              value: "{{ .Values.server.session.ttlMinutes }}"
-            - name: CODESPACE_SERVER_SESSION_COOKIE_NAME
-              value: "{{ .Values.server.session.cookieName }}"
+              value: {{ join "," .Values.server.auth.oidc.scopes | quote }}
+            {{- end }}
+
+            # =====================================================================
+            # RBAC CONFIGURATION
+            # =====================================================================
+            - name: CODESPACE_SERVER_RBAC_MODEL_PATH
+              value: /etc/codespace-operator/rbac/model.conf
+            - name: CODESPACE_SERVER_RBAC_POLICY_PATH
+              value: /etc/codespace-operator/rbac/policy.csv
+
+            # Local users file path
+            {{- if .Values.server.auth.enableLocalLogin }}
             - name: CODESPACE_SERVER_LOCAL_USERS_PATH
               value: /etc/codespace-operator/local-users.yaml
-            # Downward API
+            {{- end }}
+
+            # =====================================================================
+            # KUBERNETES POD METADATA (Downward API)
+            # =====================================================================
             - name: POD_NAME
               valueFrom: { fieldRef: { fieldPath: metadata.name } }
             - name: POD_UID
@@ -99,17 +151,24 @@ spec:
               valueFrom: { fieldRef: { fieldPath: status.podIP } }
             - name: NODE_NAME
               valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+
           volumeMounts:
-            - name: rbac
+            # RBAC configuration files
+            - name: rbac-config
               mountPath: /etc/codespace-operator/rbac
               readOnly: true
-            - name: local-users-yaml
+            # Local users configuration (if enabled)
+            {{- if .Values.server.auth.enableLocalLogin }}
+            - name: local-users
               mountPath: /etc/codespace-operator/local-users.yaml
               subPath: local-users.yaml
               readOnly: true
+            {{- end }}
+
+          # Health checks
           readinessProbe:
             httpGet:
-              path: {{ .Values.server.probes.readinessPath | default "/readyz" }}
+              path: {{ .Values.server.probes.readinessPath }}
               port: {{ .Values.server.service.targetPort }}
               scheme: HTTP
             initialDelaySeconds: 10
@@ -117,43 +176,52 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
             successThreshold: 1
+
           livenessProbe:
             httpGet:
-              path: {{ .Values.server.probes.livenessPath | default "/healthz" }}
+              path: {{ .Values.server.probes.livenessPath }}
               port: {{ .Values.server.service.targetPort }}
               scheme: HTTP
-            initialDelaySeconds: 15
+            initialDelaySeconds: 30
             periodSeconds: 30
-            timeoutSeconds: 5
+            timeoutSeconds: 10
             failureThreshold: 3
             successThreshold: 1
+
           {{- with .Values.server.resources }}
           resources:
-{{ toYaml . | indent 12 }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
+          
           {{- with .Values.server.containerSecurityContext }}
           securityContext:
-{{ toYaml . | indent 12 }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
+
+      # Volume definitions
       volumes:
-        - name: rbac
+        - name: rbac-config
           configMap:
-            name: codespace-rbac-cm
-        - name: local-users-yaml
+            name: {{ include "codespace.server.rbac.configMapName" . }}
+            defaultMode: 0644
+        {{- if .Values.server.auth.enableLocalLogin }}
+        - name: local-users
           secret:
-            secretName: {{ include "codespace-operator.server.name" . }}-local-users
+            secretName: {{ include "codespace.server.name" . }}-local-users
+            defaultMode: 0600
+        {{- end }}
+
+      # Scheduling
       {{- with .Values.server.nodeSelector }}
       nodeSelector:
-{{ toYaml . | indent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.server.tolerations }}
       tolerations:
-{{ toYaml . | indent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.server.affinity }}
       affinity:
-{{ toYaml . | indent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
 {{- end }}
-
-

@@ -2,19 +2,23 @@
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: {{ include "codespace-operator.server.name" . }}
+  name: {{ include "codespace.server.name" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
-{{ include "codespace-operator.labels" . | indent 4 }}
-  {{- with .Values.server.route.annotations }}
+    {{- include "codespace.server.labels" . | nindent 4 }}
   annotations:
-{{ toYaml . | indent 4 }}
-  {{- end }}
+    {{- $baseAnnotations := include "codespace.server.annotations" . | fromYaml }}
+    {{- $routeAnnotations := .Values.server.route.annotations | default dict }}
+    {{- $allAnnotations := merge (dict) $baseAnnotations $routeAnnotations }}
+    {{- if $allAnnotations }}
+    {{- toYaml $allAnnotations | nindent 4 }}
+    {{- end }}
 spec:
   to:
     kind: Service
-    name: {{ include "codespace-operator.server.serviceName" . }}
+    name: {{ include "codespace.server.serviceName" . }}
   {{- if .Values.server.route.tls }}
   tls:
-{{ toYaml .Values.server.route.tls | indent 4 }}
+    {{- toYaml .Values.server.route.tls | nindent 4 }}
   {{- end }}
 {{- end }}
