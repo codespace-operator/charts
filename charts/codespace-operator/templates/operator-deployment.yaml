@@ -1,0 +1,104 @@
+{{- if .Values.operator.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "codespace.operator.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "codespace.operator.labels" . | nindent 4 }}
+  {{- $annotations := include "codespace.operator.annotations" . }}
+  {{- if $annotations }}
+  annotations:
+    {{- $annotations | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.operator.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "codespace.selectorLabels" (dict "name" (include "codespace.name" .) "root" .) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "codespace.operator.podLabels" . | nindent 8 }}
+      {{- $podAnnotations := include "codespace.operator.podAnnotations" . }}
+      {{- if $podAnnotations }}
+      annotations:
+        {{- $podAnnotations | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "codespace.serviceAccountName" . }}
+      {{- with .Values.operator.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: session-controller
+          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
+          imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
+          args:
+            - "--metrics-bind-address={{ ternary .Values.operator.metrics.bindAddress "0" (not .Values.operator.metrics.enabled) }}"
+            - "--metrics-secure={{ ternary "true" "false" .Values.operator.metrics.secure }}"
+            - "--health-probe-bind-address=:8081"
+            - "--enable-http2={{ ternary "true" "false" .Values.operator.enableHTTP2 }}"
+            {{- if .Values.operator.webhook.enabled }}
+            - "--webhook-cert-path={{ .Values.operator.webhook.certPath }}"
+            - "--webhook-cert-name={{ .Values.operator.webhook.certName }}"
+            - "--webhook-cert-key={{ .Values.operator.webhook.certKey }}"
+            {{- end }}
+            {{- range .Values.operator.extraArgs }}
+            - "{{ . }}"
+            {{- end }}
+          ports:
+            {{- if and .Values.operator.metrics.enabled .Values.operator.metrics.secure }}
+            - name: https-metrics
+              containerPort: 8443
+              protocol: TCP
+            {{- else if and .Values.operator.metrics.enabled (not .Values.operator.metrics.secure) }}
+            - name: http-metrics
+              containerPort: 8080
+              protocol: TCP
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- with .Values.operator.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.operator.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.operator.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.operator.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.operator.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

@@ -2,11 +2,17 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "codespace-operator.server.name" . }}
-  {{- with .Values.server.ingress.annotations }}
+  name: {{ include "codespace.server.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "codespace.server.labels" . | nindent 4 }}
   annotations:
-{{ toYaml . | indent 4 }}
-  {{- end }}
+    {{- $baseAnnotations := include "codespace.server.annotations" . | fromYaml }}
+    {{- $ingressAnnotations := .Values.server.ingress.annotations | default dict }}
+    {{- $allAnnotations := merge (dict) $baseAnnotations $ingressAnnotations }}
+    {{- if $allAnnotations }}
+    {{- toYaml $allAnnotations | nindent 4 }}
+    {{- end }}
 spec:
   {{- if .Values.server.ingress.className }}
   ingressClassName: {{ .Values.server.ingress.className }}
@@ -20,12 +26,12 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "codespace-operator.server.serviceName" $ }}
+                name: {{ include "codespace.server.serviceName" $ }}
                 port:
                   number: {{ $.Values.server.service.port }}
   {{- end }}
   {{- with .Values.server.ingress.tls }}
   tls:
-{{ toYaml . | indent 4 }}
+    {{- toYaml . | nindent 4 }}
   {{- end }}
 {{- end }}

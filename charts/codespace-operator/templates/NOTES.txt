@@ -1,4 +1,4 @@
 Thanks for installing the Codespace Operator!
 
 NAMESPACE: {{ .Release.Namespace }}
-NAME: {{ include "codespace-operator.fullname" . }}
+NAME: {{ include "codespace.fullname" . }}

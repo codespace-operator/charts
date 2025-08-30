@@ -1,0 +1,40 @@
+{{- if .Values.operator.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "codespace.operator.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "codespace.operator.labels" . | nindent 4 }}
+  {{- $annotations := include "codespace.operator.annotations" . }}
+  {{- if $annotations }}
+  annotations:
+    {{- $annotations | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "codespace.selectorLabels" (dict "name" (include "codespace.name" .) "root" .) | nindent 4 }}
+  ports:
+    - name: health
+      port: 8081
+      targetPort: 8081
+      protocol: TCP
+    {{- if and .Values.operator.metrics.enabled .Values.operator.metrics.secure }}
+    - name: https-metrics
+      port: 8443
+      targetPort: 8443
+      protocol: TCP
+    {{- else if and .Values.operator.metrics.enabled (not .Values.operator.metrics.secure) }}
+    - name: http-metrics
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    {{- end }}
+    {{- if .Values.operator.webhook.enabled }}
+    - name: webhook
+      port: 9443
+      targetPort: 9443
+      protocol: TCP
+    {{- end }}
+{{- end }}
