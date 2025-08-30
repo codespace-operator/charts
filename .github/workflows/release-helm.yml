@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
+      count:  ${{ steps.set.outputs.count }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -31,11 +32,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Compare against previous commit on main; fall back to first parent
           BASE_SHA=$(git rev-parse HEAD~1 || true)
           if [[ -z "${BASE_SHA}" ]]; then BASE_SHA=$(git rev-list --max-parents=0 HEAD); fi
-
-          # Collect changed files under charts/
           mapfile -t CHANGED < <(git diff --name-only "${BASE_SHA}"..HEAD | grep '^charts/' || true)
 
           declare -A ROOTS=()
@@ -47,26 +45,28 @@ jobs:
             done
           done
 
-          # Build matrix: [{ "chart": "<path>", "name": "<chartName>" }, ...]
           arr=()
           for r in "${!ROOTS[@]}"; do
             name=$(basename "$r")
             arr+=( "{\"chart\":\"$r\",\"name\":\"$name\"}" )
           done
 
-          if [[ ${#arr[@]} -eq 0 ]]; then
-            echo "matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
+          COUNT=${#arr[@]}
+          echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
+
+          if [[ $COUNT -eq 0 ]]; then
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
           else
             IFS=, eval 'echo "matrix={\"include\":[${arr[*]}]}"' >> "$GITHUB_OUTPUT"
           fi
 
   release:
     needs: detect
-    if: ${{ fromJson(needs.detect.outputs.matrix).include != null && length(fromJson(needs.detect.outputs.matrix).include) > 0 }}
+    if: ${{ needs.detect.outputs.count != '0' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.detect.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
