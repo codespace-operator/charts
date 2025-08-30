@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "codespace-operator.sessionController.name" . }}
+  name: {{ include "codespace-operator.operator.name" . }}
   labels:
 {{ include "codespace-operator.labels" . | indent 4 }}
 spec:
@@ -12,11 +12,14 @@ spec:
   template:
     metadata:
       labels:
-{{ include "codespace-operator.selectorLabels" (dict "name" (include "codespace-operator.name" .) "root" .) | indent 8 }}
+{{- $base := include "codespace-operator.selectorLabels" (dict "name" (include "codespace-operator.name" .) "root" .) | fromYaml -}}
+{{- $labels := merge $base (default (dict) .Values.podLabels) -}}
+{{ toYaml $labels | nindent 8 }}
+      {{- $anns := merge (dict) (default (dict) .Values.podAnnotations) -}}
+      {{- if $anns }}
       annotations:
-{{- with .Values.podAnnotations }}
-{{ toYaml . | indent 8 }}
-{{- end }}
+{{ toYaml $anns | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "codespace-operator.serviceAccountName" . }}
       securityContext:
