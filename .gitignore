@@ -33,3 +33,4 @@ local/*
 .env
 cmd/server/static/*
 node_modules/*
+dump

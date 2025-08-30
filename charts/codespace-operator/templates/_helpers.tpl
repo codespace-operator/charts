@@ -41,7 +41,7 @@ app.kubernetes.io/instance: {{ .root.Release.Name }}
 {{- end -}}
 
 {{/* Workload names */}}
-{{- define "codespace-operator.sessionController.name" -}}
+{{- define "codespace-operator.operator.name" -}}
 {{- include "codespace-operator.fullname" . -}}
 {{- end -}}
 

@@ -24,7 +24,7 @@ metrics:
     type: ClusterIP
     annotations: {}
     port: 8443
-    targetPort: 8443
+    targetPort: 443
   serviceMonitor:
     enabled: false
     namespace: ""
@@ -68,12 +68,30 @@ ingressClass:
 
 server:
   enabled: true
+  clusterScope: false
+
+  oidc:
+    insecureSkipVerify: false
+    issuer: "" # e.g. https://dev-123456.okta.com
+    clientID: ""
+    clientSecret: ""
+    redirectURL: "" # e.g. https://your.host/auth/callback
+    scopes: ["openid", "profile", "email"]
+
+  allowTokenParam: false
+  session:
+    ttlMinutes: 60
+    cookieName: ""  # optional override
+
   route:
     enabled: false
     annotations: {}
     tls:
       termination: edge
-  debug: false
+
+  logLevel: info
+  enableLocalLogin: true
+
   auth:
     # IMPORTANT: set a stable secret in prod; chart generates one if empty
     jwtSecret: "" # set for stable upgrades
@@ -83,17 +101,17 @@ server:
     repository: ghcr.io/codespace-operator/codespace-server
     tag: "{{chart.AppVersion}}"
     pullPolicy: IfNotPresent
+
   env:
     # Same-origin by default; set to http://localhost:5173 only for local dev
-    allowOrigin: ""
+    allowOrigin: "*"
   service:
     type: ClusterIP
     annotations: {}
-    name: ""
-    port: 8080
-  probes:
-    readinessPath: /readyz
-    livenessPath: /healthz
+    name: "" # auto generate otherwise
+    port: 8443
+    targetPort: 8443 # container's port
+
   ingress:
     enabled: false
     className: ""
@@ -102,6 +120,11 @@ server:
       - host: console.codespace.test
         path: /
     tls: []
+
+  probes:
+    readinessPath: /readyz
+    livenessPath: /healthz
+
   resources:
     requests:
       cpu: 50m
@@ -109,28 +132,43 @@ server:
     limits:
       cpu: 500m
       memory: 256Mi
+
   securityContext:
     runAsUser: 1001
     runAsNonRoot: true
     fsGroup: 2000
     seccompProfile:
       type: RuntimeDefault
+
   containerSecurityContext:
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: true
     runAsNonRoot: true
     capabilities:
-      drop: ["ALL"]
+      drop: [ALL]
+
   nodeSelector: {}
   tolerations: []
   affinity: {}
   useManagerServiceAccount: false
+
   serviceAccount:
     create: true
     name: ""
+
   rbac:
     create: true
+
   networkPolicy:
     enabled: true
     allowIngressFromSameNamespace: true
     egressToKubeAPIServer: true
+
+  # Password is a hash using openssl passwd -6 "string"
+  configs:
+    localUsers: |
+      # SHA-512 hash with salt: openssl passwd -6 "yourpass"
+      users:
+        - username: admin
+          passwordHash: "$$6$hDZOMQRBnH3gk5fU$5krq9XTy.rbkLNUUEmggUbYulK/Dp1.Y3gvn/pavqYGlyvB4qhPFmeFyOVEyOnnFowo8WW5tItiT0M1wChGtO."
+          email: admin@local.com
