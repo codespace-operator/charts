@@ -181,6 +181,6 @@ server:
     localUsers: |
       # SHA-512 hash with salt: openssl passwd -6 "yourpass"
       users:
-        - username: admin
+        - username: testuser
           passwordHash: "$$6$hDZOMQRBnH3gk5fU$5krq9XTy.rbkLNUUEmggUbYulK/Dp1.Y3gvn/pavqYGlyvB4qhPFmeFyOVEyOnnFowo8WW5tItiT0M1wChGtO."
-          email: admin@local.com
+          email: testuser@local.com
