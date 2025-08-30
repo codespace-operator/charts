@@ -4,7 +4,8 @@ kind: Deployment
 metadata:
   name: {{ include "codespace-operator.server.name" . }}
   labels:
-{{ include "codespace-operator.labels" . | indent 4 }}
+{{ include "codespace-operator.commonLabels" . | indent 4 }}
+    app.kubernetes.io/component: server
 spec:
   replicas: 1
   selector:
@@ -13,15 +14,12 @@ spec:
   template:
     metadata:
       labels:
-{{- $base := include "codespace-operator.selectorLabels" (dict "name" (printf "%s-server" (include "codespace-operator.name" .)) "root" .) | fromYaml -}}
-{{- $labels := merge $base (default (dict) .Values.podLabels) (default (dict) .Values.server.podLabels) -}}
-{{ toYaml $labels | nindent 8 }}
-      {{- $anns := merge (dict) (default (dict) .Values.podAnnotations) (default (dict) .Values.server.podAnnotations) -}}
-      {{- if $anns }}
+{{ include "codespace-operator.server.podLabels" . | indent 8 }}
+      {{- $annotations := include "codespace-operator.server.podAnnotations" . }}
+      {{- if $annotations }}
       annotations:
-{{ toYaml $anns | nindent 8 }}
+{{ $annotations | indent 8 }}
       {{- end }}
-
     spec:
       serviceAccountName: {{ if .Values.server.useManagerServiceAccount }}{{ include "codespace-operator.serviceAccountName" . }}{{ else }}{{ include "codespace-operator.server.serviceAccountName" . }}{{ end }}
       {{- with .Values.server.securityContext }}
@@ -49,6 +47,7 @@ spec:
                 secretKeyRef:
                   name: {{ include "codespace-operator.server.name" . }}-auth
                   key: jwt-secret
+            {{- if .Values.server.bootstrapLoginAllowed }}
             - name: CODESPACE_SERVER_BOOTSTRAP_USER
               valueFrom:
                 secretKeyRef:
@@ -59,13 +58,13 @@ spec:
                 secretKeyRef:
                   name: {{ include "codespace-operator.server.name" . }}-auth
                   key: bootstrap-password
-            # Optional overrides for RBAC file paths (usually not needed)
+            {{- end }}
             - name: CODESPACE_SERVER_RBAC_MODEL_PATH
               value: "/etc/codespace-operator/rbac/model.conf"
             - name: CODESPACE_SERVER_RBAC_POLICY_PATH
               value: "/etc/codespace-operator/rbac/policy.csv"
-            - name: CODESPACE_SERVER_OIDC_ISSUER
-              value: "{{ .Values.server.oidc.issuer }}"
+            - name: CODESPACE_SERVER_OIDC_ISSUER_URL
+              value: "{{ .Values.server.oidc.issuerURL }}"
             - name: CODESPACE_SERVER_OIDC_CLIENT_ID
               value: "{{ .Values.server.oidc.clientID }}"
             - name: CODESPACE_SERVER_OIDC_INSECURE_SKIP_VERIFY
@@ -80,12 +79,12 @@ spec:
             - name: CODESPACE_SERVER_OIDC_SCOPES
               value: "{{ join "," .Values.server.oidc.scopes }}"
             - name: CODESPACE_SERVER_ENABLE_LOCAL_LOGIN
-              value: "{{ .Values.server.enableLocalLogin }}"
+              value: "{{ .Values.server.auth.enableLocalLogin }}"
             - name: CODESPACE_SERVER_ALLOW_TOKEN_PARAM
-              value: "{{ .Values.server.allowTokenParam }}"
+              value: "{{ .Values.server.auth.allowTokenParam }}"
             - name: CODESPACE_SERVER_SESSION_TTL_MINUTES
               value: "{{ .Values.server.session.ttlMinutes }}"
-            - name: CODESPACE_SERVER_SESSION_COOKIE
+            - name: CODESPACE_SERVER_SESSION_COOKIE_NAME
               value: "{{ .Values.server.session.cookieName }}"
             - name: CODESPACE_SERVER_LOCAL_USERS_PATH
               value: /etc/codespace-operator/local-users.yaml
@@ -107,7 +106,7 @@ spec:
             - name: local-users-yaml
               mountPath: /etc/codespace-operator/local-users.yaml
               subPath: local-users.yaml
-              readOnly: true  # subject to change..?
+              readOnly: true
           readinessProbe:
             httpGet:
               path: {{ .Values.server.probes.readinessPath | default "/readyz" }}
@@ -156,3 +155,5 @@ spec:
 {{ toYaml . | indent 8 }}
       {{- end }}
 {{- end }}
+
+

@@ -29,6 +29,11 @@ jobs:
             server
             ui
             chart
+            charts
+            api
+            ldap
+            rbac
             helm
             crd
             api
+            auth

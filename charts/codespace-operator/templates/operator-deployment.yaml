@@ -1,0 +1,74 @@
+{{- if .Values.operator.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "codespace-operator.operator.name" . }}
+  labels:
+{{ include "codespace-operator.commonLabels" . | indent 4 }}
+    app.kubernetes.io/component: operator
+spec:
+  replicas: {{ .Values.operator.replicaCount }}
+  selector:
+    matchLabels:
+{{ include "codespace-operator.selectorLabels" (dict "name" (include "codespace-operator.name" .) "root" .) | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ include "codespace-operator.operator.podLabels" . | indent 8 }}
+      {{- $annotations := include "codespace-operator.operator.podAnnotations" . }}
+      {{- if $annotations }}
+      annotations:
+{{ $annotations | indent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "codespace-operator.serviceAccountName" . }}
+      securityContext:
+{{ toYaml .Values.operator.securityContext | indent 8 }}
+      containers:
+        - name: session-controller
+          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
+          imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
+          args:
+            - "--metrics-bind-address={{ ternary .Values.operator.metrics.bindAddress "0" (not .Values.operator.metrics.enabled) }}"
+            - "--metrics-secure={{ ternary "true" "false" .Values.operator.metrics.secure }}"
+            - "--health-probe-bind-address=:8081"
+            - "--enable-http2={{ ternary "true" "false" .Values.operator.enableHTTP2 }}"
+{{- if .Values.operator.webhook.enabled }}
+            - "--webhook-cert-path={{ .Values.operator.webhook.certPath }}"
+            - "--webhook-cert-name={{ .Values.operator.webhook.certName }}"
+            - "--webhook-cert-key={{ .Values.operator.webhook.certKey }}"
+{{- end }}
+{{- range $arg := .Values.extraArgs }}
+            - "{{ $arg }}"
+{{- end }}
+          ports:
+{{- if and .Values.operator.metrics.enabled .Values.operator.metrics.secure }}
+            - name: https-metrics
+              containerPort: 8443
+{{- else if and .Values.operator.metrics.enabled (not .Values.operator.metrics.secure) }}
+            - name: http-metrics
+              containerPort: 8080
+{{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+{{ toYaml .Values.operator.resources | indent 12 }}
+          securityContext:
+{{ toYaml .Values.operator.containerSecurityContext | indent 12 }}
+      nodeSelector:
+{{ toYaml .Values.operator.nodeSelector | indent 8 }}
+      tolerations:
+{{ toYaml .Values.operator.tolerations | indent 8 }}
+      affinity:
+{{ toYaml .Values.operator.affinity | indent 8 }}
+{{- end }}
