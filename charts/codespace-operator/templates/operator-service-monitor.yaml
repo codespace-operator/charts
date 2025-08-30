@@ -1,0 +1,24 @@
+{{- if .Values.operator.enabled }}
+{{- if and .Values.operator.metrics.enabled .Values.operator.metrics.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "codespace-operator.fullname" . }}
+  namespace: {{ .Values.operator.metrics.serviceMonitor.namespace | default .Release.Namespace }}
+  labels:
+{{ toYaml .Values.operator.metrics.serviceMonitor.labels | indent 4 }}
+spec:
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.operator.metrics.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.operator.metrics.serviceMonitor.scrapeTimeout }}
+      scheme: {{ ternary "https" "http" .Values.operator.metrics.secure }}
+      tlsConfig:
+{{- if .Values.operator.metrics.secure }}
+        insecureSkipVerify: true
+{{- end }}
+  selector:
+    matchLabels:
+{{ include "codespace-operator.labels" . | indent 6 }}
+{{- end }}
+{{- end }}

@@ -1,4 +1,4 @@
-{{- if and .Values.metrics.enabled (ne .Values.metrics.bindAddress "0") }}
+{{- if and .Values.operator.metrics.enabled (ne .Values.operator.metrics.bindAddress "0") }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -7,13 +7,13 @@ metadata:
   labels:
 {{ include "codespace-operator.labels" . | indent 4 }}
   annotations:
-{{ toYaml .Values.metrics.service.annotations | indent 4 }}
+{{ toYaml .Values.operator.metrics.service.annotations | indent 4 }}
 spec:
-  type: {{ .Values.metrics.service.type }}
+  type: {{ .Values.operator.metrics.service.type }}
   selector:
 {{ include "codespace-operator.selectorLabels" (dict "name" (include "codespace-operator.name" .) "root" .) | indent 4 }}
   ports:
     - name: metrics
-      port: {{ .Values.metrics.service.port }}
-      targetPort: {{ .Values.metrics.service.targetPort }}
+      port: {{ .Values.operator.metrics.service.port }}
+      targetPort: {{ .Values.operator.metrics.service.targetPort }}
 {{- end }}

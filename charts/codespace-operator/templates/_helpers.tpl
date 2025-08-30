@@ -33,10 +33,10 @@ app.kubernetes.io/instance: {{ .root.Release.Name }}
 
 {{/* ServiceAccount name */}}
 {{- define "codespace-operator.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create -}}
-{{- default (include "codespace-operator.fullname" .) .Values.serviceAccount.name -}}
+{{- if .Values.operator.serviceAccount.create -}}
+{{- default (include "codespace-operator.fullname" .) .Values.operator.serviceAccount.name -}}
 {{- else -}}
-{{- default "default" .Values.serviceAccount.name -}}
+{{- default "default" .Values.operator.serviceAccount.name -}}
 {{- end -}}
 {{- end -}}
 
@@ -52,7 +52,7 @@ app.kubernetes.io/instance: {{ .root.Release.Name }}
 {{/* Services */}}
 {{- define "codespace-operator.metrics.serviceName" -}}
 {{- $d := printf "%s-metrics-service" (include "codespace-operator.fullname" .) -}}
-{{- default (printf "%s-metrics-service" (include "codespace-operator.fullname" .)) .Values.metrics.service.name -}}
+{{- default (printf "%s-metrics-service" (include "codespace-operator.fullname" .)) .Values.operator.metrics.service.name -}}
 {{- end -}}
 
 {{- define "codespace-operator.server.serviceName" -}}
@@ -67,4 +67,76 @@ app.kubernetes.io/instance: {{ .root.Release.Name }}
 {{- else -}}
 {{- default "default" .Values.server.serviceAccount.name -}}
 {{- end -}}
+{{- end -}}
+
+{{/* Enhanced common labels that include Helm metadata */}}
+{{- define "codespace-operator.commonLabels" -}}
+app.kubernetes.io/name: {{ include "codespace-operator.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/part-of: {{ .Chart.Name }}
+helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" }}
+helm.sh/release: {{ .Release.Name }}
+helm.sh/revision: {{ .Release.Revision | quote }}
+{{- end -}}
+
+{{/* Create pod labels for server component */}}
+{{- define "codespace-operator.server.podLabels" -}}
+{{- $selectorLabels := include "codespace-operator.selectorLabels" (dict "name" (printf "%s-server" (include "codespace-operator.name" .)) "root" .) | fromYaml -}}
+{{- $commonLabels := include "codespace-operator.commonLabels" . | fromYaml -}}
+{{- $result := merge (dict) $selectorLabels $commonLabels -}}
+{{- with .Values.podLabels }}
+{{- $result = merge $result . -}}
+{{- end }}
+{{- with .Values.server.podLabels }}
+{{- $result = merge $result . -}}
+{{- end }}
+{{- toYaml $result -}}
+{{- end -}}
+
+{{/* Create pod labels for operator component */}}
+{{- define "codespace-operator.operator.podLabels" -}}
+{{- $selectorLabels := include "codespace-operator.selectorLabels" (dict "name" (include "codespace-operator.name" .) "root" .) | fromYaml -}}
+{{- $commonLabels := include "codespace-operator.commonLabels" . | fromYaml -}}
+{{- $result := merge (dict) $selectorLabels $commonLabels -}}
+{{- with .Values.podLabels }}
+{{- $result = merge $result . -}}
+{{- end }}
+{{- with .Values.operator.podLabels }}
+{{- $result = merge $result . -}}
+{{- end }}
+{{- toYaml $result -}}
+{{- end -}}
+
+{{/* Create pod annotations for server component */}}
+{{- define "codespace-operator.server.podAnnotations" -}}
+{{- $result := dict -}}
+{{- $_ := set $result "meta.helm.sh/release-name" .Release.Name -}}
+{{- $_ := set $result "meta.helm.sh/release-namespace" .Release.Namespace -}}
+{{- with .Values.podAnnotations }}
+{{- $result = merge $result . -}}
+{{- end }}
+{{- with .Values.server.podAnnotations }}
+{{- $result = merge $result . -}}
+{{- end }}
+{{- if $result }}
+{{- toYaml $result -}}
+{{- end }}
+{{- end -}}
+
+{{/* Create pod annotations for operator component */}}
+{{- define "codespace-operator.operator.podAnnotations" -}}
+{{- $result := dict -}}
+{{- $_ := set $result "meta.helm.sh/release-name" .Release.Name -}}
+{{- $_ := set $result "meta.helm.sh/release-namespace" .Release.Namespace -}}
+{{- with .Values.podAnnotations }}
+{{- $result = merge $result . -}}
+{{- end }}
+{{- with .Values.operator.podAnnotations }}
+{{- $result = merge $result . -}}
+{{- end }}
+{{- if $result }}
+{{- toYaml $result -}}
+{{- end }}
 {{- end -}}
