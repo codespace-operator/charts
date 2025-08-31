@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/codespace-operator/charts/compare/codespace-v1.0.0...codespace-v1.0.1) (2025-08-31)
+
+
+### Bug Fixes
+
+* **codespace:** set 1.0.0 default appVersion ([8005a2f](https://github.com/codespace-operator/charts/commit/8005a2f70f443f2594d9f0fc3572c4e6e4c78e3c))
+
 # 1.0.0 (2025-08-30)
 
 
