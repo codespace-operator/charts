@@ -13,6 +13,7 @@ module.exports = {
       'rbac',
       'helm',
       'charts',
+      'codespace',
       'chart',
       'repo',  // release, repo workflow rules etc
       'ci',     // ci workflow rules etc

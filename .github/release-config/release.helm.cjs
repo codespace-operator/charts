@@ -1,7 +1,7 @@
 const chartPath = process.env.CHART_PATH;           // e.g. charts/codespace-operator
 const chartName = process.env.CHART_NAME;           // e.g. codespace-operator
 const tagPrefix = `${chartName}-`;            // -> codespace-operator-v1.2.3
-const releaseScope = /(^|,|\s)(operator|server|charts|chart|helm|oidc|ldap|rbac)(?=,|\s|$)/
+const releaseScope = /(^|,|\s)(codespace|operator|server|charts|chart|helm|oidc|ldap|rbac)(?=,|\s|$)/
 const releaseType = /^(docs|chore|build|ci|test|refactor|repo)$/
 if (!chartPath || !chartName) {
   throw new Error('CHART_PATH and CHART_NAME must be set');
