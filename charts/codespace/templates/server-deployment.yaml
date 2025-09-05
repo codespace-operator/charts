@@ -29,7 +29,7 @@ spec:
         # Force restart on config changes
         checksum/rbac: {{ include (print $.Template.BasePath "/server-configmap-rbac.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/server-secret.yaml") . | sha256sum }}
-        {{- if .Values.server.auth.enableLocalLogin }}
+        {{- if .Values.server.auth.providers.local.enabled }}
         checksum/users: {{ include (print $.Template.BasePath "/server-users-secret.yaml") . | sha256sum }}
         {{- end }}
         {{- $podAnnotations := include "codespace.server.podAnnotations" . }}
@@ -51,9 +51,7 @@ spec:
               containerPort: {{ .Values.server.service.targetPort }}
               protocol: TCP
           env:
-            # =====================================================================
-            # CORE SERVER CONFIGURATION
-            # =====================================================================
+            # ================= CORE =================
             - name: CODESPACE_SERVER_CLUSTER_SCOPE
               value: {{ .Values.server.clusterScope | quote }}
             - name: CODESPACE_SERVER_PORT
@@ -63,158 +61,169 @@ spec:
             - name: CODESPACE_SERVER_ALLOW_ORIGIN
               value: {{ .Values.server.env.allowOrigin | quote }}
 
-            # =====================================================================
-            # SESSION CONFIGURATION  
-            # =====================================================================
-            - name: CODESPACE_SERVER_SESSION_TTL_MINUTES
-              value: {{ .Values.server.session.ttlMinutes | quote }}
-            {{- if .Values.server.session.cookieName }}
-            - name: CODESPACE_SERVER_SESSION_COOKIE_NAME
-              value: {{ .Values.server.session.cookieName | quote }}
-            {{- end }}
-
-            # =====================================================================
-            # AUTHENTICATION CONFIGURATION
-            # =====================================================================
-            - name: CODESPACE_SERVER_JWT_SECRET
+            # ================ MANAGER (manager.*) ================
+            - name: CODESPACE_SERVER_MANAGER_JWT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ include "codespace.server.name" . }}-auth
                   key: jwt-secret
-            - name: CODESPACE_SERVER_ENABLE_LOCAL_LOGIN
-              value: {{ .Values.server.auth.enableLocalLogin | quote }}
-            - name: CODESPACE_SERVER_ALLOW_TOKEN_PARAM
-              value: {{ .Values.server.auth.allowTokenParam | quote }}
 
-            # Bootstrap admin (if enabled)
-            {{- if .Values.server.auth.bootstrapLoginAllowed }}
-            - name: CODESPACE_SERVER_BOOTSTRAP_LOGIN_ALLOWED
+            - name: CODESPACE_SERVER_MANAGER_SESSION_TTL
+              value: {{ .Values.server.auth.manager.sessionTTL | quote }}
+
+            {{- if .Values.server.auth.manager.cookieName }}
+            - name: CODESPACE_SERVER_MANAGER_SESSION_COOKIE_NAME
+              value: {{ .Values.server.auth.manager.cookieName | quote }}
+            {{- end }}
+
+            - name: CODESPACE_SERVER_MANAGER_ALLOW_TOKEN_PARAM
+              value: {{ .Values.server.auth.manager.allowTokenParam | quote }}
+
+            - name: CODESPACE_SERVER_MANAGER_AUTH_PATH
+              value: {{ .Values.server.auth.manager.authPath | default "/auth" | quote }}
+            - name: CODESPACE_SERVER_MANAGER_AUTH_LOGOUT_PATH
+              value: {{ .Values.server.auth.manager.authLogoutPath | default "/auth/logout" | quote }}
+
+            - name: CODESPACE_SERVER_MANAGER_SAME_SITE
+              value: {{ .Values.server.auth.manager.sameSite | default "Lax" | quote }}
+            - name: CODESPACE_SERVER_MANAGER_ABSOLUTE_SESSION_MAX
+              value: {{ .Values.server.auth.manager.absoluteMax | default "24h" | quote }}
+
+            # ================ LOCAL (providers.local.*) ==========
+            - name: CODESPACE_SERVER_PROVIDERS_LOCAL_ENABLED
+              value: {{ .Values.server.auth.providers.local.enabled | quote }}
+
+            {{- if .Values.server.auth.providers.local.enabled }}
+            - name: CODESPACE_SERVER_PROVIDERS_LOCAL_USERS_PATH
+              value: /etc/codespace-operator/local-users.yaml
+            {{- end }}
+
+            {{- if .Values.server.auth.providers.local.bootstrapLoginAllowed }}
+            - name: CODESPACE_SERVER_PROVIDERS_LOCAL_BOOTSTRAP_ALLOWED
               value: "true"
-            - name: CODESPACE_SERVER_BOOTSTRAP_USER
+            - name: CODESPACE_SERVER_PROVIDERS_LOCAL_BOOTSTRAP_USER
               valueFrom:
                 secretKeyRef:
                   name: {{ include "codespace.server.name" . }}-auth
                   key: bootstrap-user
-            - name: CODESPACE_SERVER_BOOTSTRAP_PASSWORD
+            - name: CODESPACE_SERVER_PROVIDERS_LOCAL_BOOTSTRAP_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "codespace.server.name" . }}-auth
                   key: bootstrap-password
             {{- else }}
-            - name: CODESPACE_SERVER_BOOTSTRAP_LOGIN_ALLOWED
+            - name: CODESPACE_SERVER_PROVIDERS_LOCAL_BOOTSTRAP_ALLOWED
               value: "false"
             {{- end }}
-            # =====================================================================
-            # OIDc CONFIGURATION
-            # =====================================================================
-            {{- if .Values.server.auth.oidc.enabled }}
-            - name: CODESPACE_SERVER_OIDC_ISSUER_URL
-              value: {{ .Values.server.auth.oidc.issuerURL | quote }}
-            - name: CODESPACE_SERVER_OIDC_CLIENT_ID
-              value: {{ .Values.server.auth.oidc.clientID | quote }}
-            - name: CODESPACE_SERVER_OIDC_INSECURE_SKIP_VERIFY
-              value: {{ .Values.server.auth.oidc.insecureSkipVerify | quote }}
-            - name: CODESPACE_SERVER_OIDC_CLIENT_SECRET
+
+            # ================== OIDC (providers.oidc.*) ==================
+            {{- if .Values.server.auth.providers.oidc.enabled }}
+            - name: CODESPACE_SERVER_PROVIDERS_OIDC_ENABLED
+              value: "true"
+            - name: CODESPACE_SERVER_PROVIDERS_OIDC_ISSUER_URL
+              value: {{ .Values.server.auth.providers.oidc.issuerURL | quote }}
+            - name: CODESPACE_SERVER_PROVIDERS_OIDC_CLIENT_ID
+              value: {{ .Values.server.auth.providers.oidc.clientID | quote }}
+            - name: CODESPACE_SERVER_PROVIDERS_OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ include "codespace.server.name" . }}-auth
                   key: oidc-client-secret
-            - name: CODESPACE_SERVER_OIDC_REDIRECT_URL
-              value: {{ .Values.server.auth.oidc.redirectURL | quote }}
-            - name: CODESPACE_SERVER_OIDC_SCOPES
-              value: {{ join "," .Values.server.auth.oidc.scopes | quote }}
+            - name: CODESPACE_SERVER_PROVIDERS_OIDC_REDIRECT_URL
+              value: {{ .Values.server.auth.providers.oidc.redirectURL | quote }}
+            - name: CODESPACE_SERVER_PROVIDERS_OIDC_INSECURE_SKIP_VERIFY
+              value: {{ .Values.server.auth.providers.oidc.insecureSkipVerify | quote }}
+
+            # Scopes: viper usually parses CSV to []string. Keep CSV here.
+            - name: CODESPACE_SERVER_PROVIDERS_OIDC_SCOPES
+              value: {{ join "," .Values.server.auth.providers.oidc.scopes | quote }}
             {{- end }}
-            # =====================================================================
-            # LDAP CONFIGURATION
-            # =====================================================================
-            {{- if .Values.server.auth.ldap.enabled }}
-            - name: CODESPACE_SERVER_LDAP_ENABLED
-              value: {{ .Values.server.auth.ldap.enabled | quote }}
-            - name: CODESPACE_SERVER_LDAP_URL
-              value: {{ .Values.server.auth.ldap.url | quote }}
-            - name: CODESPACE_SERVER_LDAP_START_TLS
-              value: {{ .Values.server.auth.ldap.startTLS | quote }}
-            - name: CODESPACE_SERVER_LDAP_INSECURE_SKIP_VERIFY
-              value: {{ .Values.server.auth.ldap.insecureSkipVerify | quote }}
-            - name: CODESPACE_SERVER_LDAP_BIND_DN
-              value: {{ .Values.server.auth.ldap.bindDN | quote }}
-            {{- if ne .Values.server.auth.ldap.bindPassword "" }}
-            - name: CODESPACE_SERVER_LDAP_BIND_PASSWORD
+
+            # ================== LDAP (providers.ldap.*) ==================
+            {{- if .Values.server.auth.providers.ldap.enabled }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_ENABLED
+              value: {{ .Values.server.auth.providers.ldap.enabled | quote }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_URL
+              value: {{ .Values.server.auth.providers.ldap.url | quote }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_START_TLS
+              value: {{ .Values.server.auth.providers.ldap.startTLS | quote }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_INSECURE_SKIP_VERIFY
+              value: {{ .Values.server.auth.providers.ldap.insecureSkipVerify | quote }}
+
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_BIND_DN
+              value: {{ .Values.server.auth.providers.ldap.bindDN | quote }}
+            {{- if ne .Values.server.auth.providers.ldap.bindPassword "" }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_BIND_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "codespace.server.name" . }}-auth
                   key: ldap-bind-password
             {{- end }}
 
-            # User search
-            {{- if .Values.server.auth.ldap.userDNTemplate }}
-            - name: CODESPACE_SERVER_LDAP_USER_DN_TEMPLATE
-              value: {{ .Values.server.auth.ldap.userDNTemplate | quote }}
+            # User resolution
+            {{- if .Values.server.auth.providers.ldap.userDNTemplate }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_USER_DN_TEMPLATE
+              value: {{ .Values.server.auth.providers.ldap.userDNTemplate | quote }}
             {{- end }}
-            {{- if .Values.server.auth.ldap.userBaseDN }}
-            - name: CODESPACE_SERVER_LDAP_USER_BASE_DN
-              value: {{ .Values.server.auth.ldap.userBaseDN | quote }}
+            {{- if .Values.server.auth.providers.ldap.userBaseDN }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_USER_BASE_DN
+              value: {{ .Values.server.auth.providers.ldap.userBaseDN | quote }}
             {{- end }}
-            {{- if .Values.server.auth.ldap.userFilter }}
-            - name: CODESPACE_SERVER_LDAP_USER_FILTER
-              value: {{ .Values.server.auth.ldap.userFilter | quote }}
+            {{- if .Values.server.auth.providers.ldap.userFilter }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_USER_FILTER
+              value: {{ .Values.server.auth.providers.ldap.userFilter | quote }}
             {{- end }}
-            {{- if .Values.server.auth.ldap.usernameAttr }}
-            - name: CODESPACE_SERVER_LDAP_USERNAME_ATTR
-              value: {{ .Values.server.auth.ldap.usernameAttr | quote }}
+            {{- if .Values.server.auth.providers.ldap.usernameAttr }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_USERNAME_ATTR
+              value: {{ .Values.server.auth.providers.ldap.usernameAttr | quote }}
             {{- end }}
-            {{- if .Values.server.auth.ldap.emailAttr }}
-            - name: CODESPACE_SERVER_LDAP_EMAIL_ATTR
-              value: {{ .Values.server.auth.ldap.emailAttr | quote }}
+            {{- if .Values.server.auth.providers.ldap.emailAttr }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_EMAIL_ATTR
+              value: {{ .Values.server.auth.providers.ldap.emailAttr | quote }}
             {{- end }}
-            {{- if .Values.server.auth.ldap.displayNameAttr }}
-            - name: CODESPACE_SERVER_LDAP_DISPLAY_NAME_ATTR
-              value: {{ .Values.server.auth.ldap.displayNameAttr | quote }}
+            {{- if .Values.server.auth.providers.ldap.displayNameAttr }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_DISPLAY_NAME_ATTR
+              value: {{ .Values.server.auth.providers.ldap.displayNameAttr | quote }}
             {{- end }}
-            - name: CODESPACE_SERVER_LDAP_TO_LOWER_USERNAME
-              value: {{ .Values.server.auth.ldap.toLowerUsername | quote }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_TO_LOWER_USERNAME
+              value: {{ .Values.server.auth.providers.ldap.toLowerUsername | quote }}
 
-            # Group search
-            {{- if .Values.server.auth.ldap.groupBaseDN }}
-            - name: CODESPACE_SERVER_LDAP_GROUP_BASE_DN
-              value: {{ .Values.server.auth.ldap.groupBaseDN | quote }}
+            # Group / roles
+            {{- if .Values.server.auth.providers.ldap.groupBaseDN }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_GROUP_BASE_DN
+              value: {{ .Values.server.auth.providers.ldap.groupBaseDN | quote }}
             {{- end }}
-            {{- if .Values.server.auth.ldap.groupFilter }}
-            - name: CODESPACE_SERVER_LDAP_GROUP_FILTER
-              value: {{ .Values.server.auth.ldap.groupFilter | quote }}
+            {{- if .Values.server.auth.providers.ldap.groupFilter }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_GROUP_FILTER
+              value: {{ .Values.server.auth.providers.ldap.groupFilter | quote }}
             {{- end }}
-            {{- if .Values.server.auth.ldap.groupAttr }}
-            - name: CODESPACE_SERVER_LDAP_GROUP_ATTR
-              value: {{ .Values.server.auth.ldap.groupAttr | quote }}
+            {{- if .Values.server.auth.providers.ldap.groupAttr }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_GROUP_ATTR
+              value: {{ .Values.server.auth.providers.ldap.groupAttr | quote }}
             {{- end }}
 
-            # Role mapping & defaults (JSON for mapping; omit if you rely on Casbin g-rules)
-            {{- if .Values.server.auth.ldap.roleMapping }}
-            - name: CODESPACE_SERVER_LDAP_ROLE_MAPPING
-              value: {{ toJson .Values.server.auth.ldap.roleMapping | quote }}
+            {{- if .Values.server.auth.providers.ldap.roleMapping }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_ROLE_MAPPING
+              value: {{ toJson .Values.server.auth.providers.ldap.roleMapping | quote }}
             {{- end }}
-            {{- if .Values.server.auth.ldap.defaultRoles }}
-            - name: CODESPACE_SERVER_LDAP_DEFAULT_ROLES
-              value: {{ join "," .Values.server.auth.ldap.defaultRoles | quote }}
+            {{- if .Values.server.auth.providers.ldap.defaultRoles }}
+            - name: CODESPACE_SERVER_PROVIDERS_LDAP_DEFAULT_ROLES
+              value: {{ join "," .Values.server.auth.providers.ldap.defaultRoles | quote }}
             {{- end }}
             {{- end }}
-            # =====================================================================
-            # RBAC CONFIGURATION
-            # =====================================================================
+
+            # ================= RBAC paths ================
             - name: CODESPACE_SERVER_RBAC_MODEL_PATH
               value: /etc/codespace-operator/rbac/model.conf
             - name: CODESPACE_SERVER_RBAC_POLICY_PATH
               value: /etc/codespace-operator/rbac/policy.csv
 
-            # Local users file path
-            {{- if .Values.server.auth.enableLocalLogin }}
-            - name: CODESPACE_SERVER_LOCAL_USERS_PATH
+            {{- if .Values.server.auth.providers.local.enabled }}
+            - name: CODESPACE_SERVER_PROVIDERS_LOCAL_USERS_PATH
               value: /etc/codespace-operator/local-users.yaml
             {{- end }}
 
-            # =====================================================================
-            # KUBERNETES POD METADATA (Downward API)
-            # =====================================================================
+            # ============ Downward API ============
             - name: POD_NAME
               valueFrom: { fieldRef: { fieldPath: metadata.name } }
             - name: POD_UID
@@ -226,13 +235,14 @@ spec:
             - name: NODE_NAME
               valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
 
+
           volumeMounts:
             # RBAC configuration files
             - name: rbac-config
               mountPath: /etc/codespace-operator/rbac
               readOnly: true
             # Local users configuration (if enabled)
-            {{- if .Values.server.auth.enableLocalLogin }}
+            {{- if .Values.server.auth.providers.local.enabled }}
             - name: local-users
               mountPath: /etc/codespace-operator/local-users.yaml
               subPath: local-users.yaml
@@ -278,7 +288,7 @@ spec:
           configMap:
             name: {{ include "codespace.server.rbac.configMapName" . }}
             defaultMode: 0644
-        {{- if .Values.server.auth.enableLocalLogin }}
+        {{- if .Values.server.auth.providers.local.enabled }}
         - name: local-users
           secret:
             secretName: {{ include "codespace.server.name" . }}-local-users
