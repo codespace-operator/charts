@@ -81,6 +81,16 @@ RBAC HELPER FUNCTIONS
 
 {{/*
 ================================================================================
+LDAP HELPER FUNCTIONS
+================================================================================
+*/}}
+{{- define "codespace.server.auth.providers.ldap.configMapName" -}}
+{{- $default := printf "%s-ldap" (include "codespace.server.name" .) -}}
+{{- default $default .Values.server.auth.providers.ldap.configMapName -}}
+{{- end -}}
+
+{{/*
+================================================================================
 STANDARD KUBERNETES LABELS (Applied to ALL resources)
 ================================================================================
 These are the core Kubernetes recommended labels that should be on every resource
