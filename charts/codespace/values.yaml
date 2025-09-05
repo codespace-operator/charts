@@ -178,6 +178,39 @@ server:
       scopes: [openid, profile, email]
       insecureSkipVerify: false
 
+
+    # LDAP settings
+    ldap:
+      enabled: false
+      url: ldap://openldap.ldap.svc.cluster.local:389
+      startTLS: false                 # dev only
+      insecureSkipVerify: true        # dev only
+      bindDN: cn=admin,dc=codespace,dc=test
+      bindPassword: ""                #
+      # User lookup
+      userDNTemplate: ""              # optional (e.g., uid={username},ou=people,dc=...,dc=...)
+      userBaseDN: ou=people,dc=codespace,dc=test
+      userFilter: (|(uid={username})(mail={username}))"
+      usernameAttr: uid
+      emailAttr: mail
+      displayNameAttr: cn
+      toLowerUsername: true
+
+      # Group lookup
+      groupBaseDN: ou=groups,dc=codespace,dc=test
+      groupFilter: (member={dn})    # {dn} expands to the user DN
+      groupAttr: cn
+
+      # Role mapping (optional; you can also rely on Casbin g-rules)
+      roleMapping:
+        "codespace-operator:admin":  ["admin"]
+        "codespace-operator:editor": ["editor"]
+        "codespace-operator:viewer": ["viewer"]
+
+      # Optional fallback if user has no matching groups (leave empty to disable)
+      defaultRoles: ["viewer"]
+
+
   # =============================================================================
   # NETWORK AND ROUTING
   # =============================================================================

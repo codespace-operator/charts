@@ -69,7 +69,7 @@ spec:
             - name: CODESPACE_SERVER_SESSION_TTL_MINUTES
               value: {{ .Values.server.session.ttlMinutes | quote }}
             {{- if .Values.server.session.cookieName }}
-            - name: CODESPACE_SERVER_SESSION_COOKIE
+            - name: CODESPACE_SERVER_SESSION_COOKIE_NAME
               value: {{ .Values.server.session.cookieName | quote }}
             {{- end }}
 
@@ -104,10 +104,11 @@ spec:
             - name: CODESPACE_SERVER_BOOTSTRAP_LOGIN_ALLOWED
               value: "false"
             {{- end }}
-
-            # OIDC/OAuth2 configuration
+            # =====================================================================
+            # OIDc CONFIGURATION
+            # =====================================================================
             {{- if .Values.server.auth.oidc.enabled }}
-            - name: CODESPACE_SERVER_OIDC_ISSUER
+            - name: CODESPACE_SERVER_OIDC_ISSUER_URL
               value: {{ .Values.server.auth.oidc.issuerURL | quote }}
             - name: CODESPACE_SERVER_OIDC_CLIENT_ID
               value: {{ .Values.server.auth.oidc.clientID | quote }}
@@ -123,7 +124,80 @@ spec:
             - name: CODESPACE_SERVER_OIDC_SCOPES
               value: {{ join "," .Values.server.auth.oidc.scopes | quote }}
             {{- end }}
+            # =====================================================================
+            # LDAP CONFIGURATION
+            # =====================================================================
+            {{- if .Values.server.auth.ldap.enabled }}
+            - name: CODESPACE_SERVER_LDAP_ENABLED
+              value: {{ .Values.server.auth.ldap.enabled | quote }}
+            - name: CODESPACE_SERVER_LDAP_URL
+              value: {{ .Values.server.auth.ldap.url | quote }}
+            - name: CODESPACE_SERVER_LDAP_START_TLS
+              value: {{ .Values.server.auth.ldap.startTLS | quote }}
+            - name: CODESPACE_SERVER_LDAP_INSECURE_SKIP_VERIFY
+              value: {{ .Values.server.auth.ldap.insecureSkipVerify | quote }}
+            - name: CODESPACE_SERVER_LDAP_BIND_DN
+              value: {{ .Values.server.auth.ldap.bindDN | quote }}
+            {{- if ne .Values.server.auth.ldap.bindPassword "" }}
+            - name: CODESPACE_SERVER_LDAP_BIND_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "codespace.server.name" . }}-auth
+                  key: ldap-bind-password
+            {{- end }}
 
+            # User search
+            {{- if .Values.server.auth.ldap.userDNTemplate }}
+            - name: CODESPACE_SERVER_LDAP_USER_DN_TEMPLATE
+              value: {{ .Values.server.auth.ldap.userDNTemplate | quote }}
+            {{- end }}
+            {{- if .Values.server.auth.ldap.userBaseDN }}
+            - name: CODESPACE_SERVER_LDAP_USER_BASE_DN
+              value: {{ .Values.server.auth.ldap.userBaseDN | quote }}
+            {{- end }}
+            {{- if .Values.server.auth.ldap.userFilter }}
+            - name: CODESPACE_SERVER_LDAP_USER_FILTER
+              value: {{ .Values.server.auth.ldap.userFilter | quote }}
+            {{- end }}
+            {{- if .Values.server.auth.ldap.usernameAttr }}
+            - name: CODESPACE_SERVER_LDAP_USERNAME_ATTR
+              value: {{ .Values.server.auth.ldap.usernameAttr | quote }}
+            {{- end }}
+            {{- if .Values.server.auth.ldap.emailAttr }}
+            - name: CODESPACE_SERVER_LDAP_EMAIL_ATTR
+              value: {{ .Values.server.auth.ldap.emailAttr | quote }}
+            {{- end }}
+            {{- if .Values.server.auth.ldap.displayNameAttr }}
+            - name: CODESPACE_SERVER_LDAP_DISPLAY_NAME_ATTR
+              value: {{ .Values.server.auth.ldap.displayNameAttr | quote }}
+            {{- end }}
+            - name: CODESPACE_SERVER_LDAP_TO_LOWER_USERNAME
+              value: {{ .Values.server.auth.ldap.toLowerUsername | quote }}
+
+            # Group search
+            {{- if .Values.server.auth.ldap.groupBaseDN }}
+            - name: CODESPACE_SERVER_LDAP_GROUP_BASE_DN
+              value: {{ .Values.server.auth.ldap.groupBaseDN | quote }}
+            {{- end }}
+            {{- if .Values.server.auth.ldap.groupFilter }}
+            - name: CODESPACE_SERVER_LDAP_GROUP_FILTER
+              value: {{ .Values.server.auth.ldap.groupFilter | quote }}
+            {{- end }}
+            {{- if .Values.server.auth.ldap.groupAttr }}
+            - name: CODESPACE_SERVER_LDAP_GROUP_ATTR
+              value: {{ .Values.server.auth.ldap.groupAttr | quote }}
+            {{- end }}
+
+            # Role mapping & defaults (JSON for mapping; omit if you rely on Casbin g-rules)
+            {{- if .Values.server.auth.ldap.roleMapping }}
+            - name: CODESPACE_SERVER_LDAP_ROLE_MAPPING
+              value: {{ toJson .Values.server.auth.ldap.roleMapping | quote }}
+            {{- end }}
+            {{- if .Values.server.auth.ldap.defaultRoles }}
+            - name: CODESPACE_SERVER_LDAP_DEFAULT_ROLES
+              value: {{ join "," .Values.server.auth.ldap.defaultRoles | quote }}
+            {{- end }}
+            {{- end }}
             # =====================================================================
             # RBAC CONFIGURATION
             # =====================================================================
