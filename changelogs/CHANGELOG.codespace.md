@@ -1,3 +1,11 @@
+# [1.1.0](https://github.com/codespace-operator/charts/compare/codespace-v1.0.1...codespace-v1.1.0) (2025-09-05)
+
+
+### Features
+
+* **server:** bump appversion ([992e531](https://github.com/codespace-operator/charts/commit/992e5319083fc97c8d002889f03f8743d1f8d387))
+* **server:** enable LDAP ([7aef7b9](https://github.com/codespace-operator/charts/commit/7aef7b9a9b575ff58ae81c7df2fa6cf7319eb824))
+
 ## [1.0.1](https://github.com/codespace-operator/charts/compare/codespace-v1.0.0...codespace-v1.0.1) (2025-08-31)
 
 
