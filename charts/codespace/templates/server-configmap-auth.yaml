@@ -1,0 +1,65 @@
+{{- if .Values.server.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "codespace.server.name" . }}-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "codespace.server.labels" . | nindent 4 }}
+data:
+  auth.yaml: |
+    manager:
+      auth_path: {{ .Values.server.auth.manager.auth_path | default "/auth" | quote }}
+      auth_logout_path: {{ .Values.server.auth.manager.auth_logout_path | default "/auth/logout" | quote }}
+      jwt_secret: ""                         # kept empty; injected via ENV for security
+      session_cookie_name: {{ .Values.server.auth.manager.session_cookie_name | default "CODESPACE_SESSION" | quote }}
+      session_ttl: {{ .Values.server.auth.manager.session_ttl | default "60m" | quote }}
+      same_site: {{ .Values.server.auth.manager.same_site | default "lax" | quote }}
+      absolute_session_max: {{ .Values.server.auth.manager.absolute_session_max | default "24h" | quote }}
+      allow_token_param: {{ .Values.server.auth.manager.allow_token_param | default false }}
+
+    providers:
+      local:
+        enabled: {{ .Values.server.auth.providers.local.enabled | default false }}
+        users_path: {{ .Values.server.auth.providers.local.users_path | default "/etc/codespace-operator/local-users.yaml" | quote }}
+        bootstrap:
+          allowed: {{ .Values.server.auth.providers.local.bootstrap.allowed | default false }}
+          user: ""                             # injected via ENV if allowed
+          password: ""                         # injected via ENV if allowed
+
+      oidc:
+        enabled: {{ .Values.server.auth.providers.oidc.enabled | default false }}
+        issuer_url: {{ .Values.server.auth.providers.oidc.issuer_url | quote }}
+        client_id: {{ .Values.server.auth.providers.oidc.client_id | quote }}
+        client_secret: ""                      # injected via ENV
+        redirect_url: {{ .Values.server.auth.providers.oidc.redirect_url | quote }}
+        scopes: {{ toJson (.Values.server.auth.providers.oidc.scopes | default (list "openid" "profile" "email")) }}
+        insecure_skip_verify: {{ .Values.server.auth.providers.oidc.insecure_skip_verify | default false }}
+
+      ldap:
+        enabled: {{ .Values.server.auth.providers.ldap.enabled | default false }}
+        url: {{ .Values.server.auth.providers.ldap.url | quote }}
+        start_tls: {{ .Values.server.auth.providers.ldap.start_tls | default false }}
+        insecure_skip_verify: {{ .Values.server.auth.providers.ldap.insecure_skip_verify | default false }}
+        bind_dn: {{ .Values.server.auth.providers.ldap.bind_dn | quote }}
+        bind_password: ""                      # injected via ENV
+
+        user:
+          dn_template: {{ .Values.server.auth.providers.ldap.user.dn_template | default "" | quote }}
+          base_dn: {{ .Values.server.auth.providers.ldap.user.base_dn | quote }}
+          filter: {{ .Values.server.auth.providers.ldap.user.filter | quote }}
+          attrs:
+            username: {{ .Values.server.auth.providers.ldap.user.attrs.username | default "uid" | quote }}
+            email: {{ .Values.server.auth.providers.ldap.user.attrs.email | default "mail" | quote }}
+            display_name: {{ .Values.server.auth.providers.ldap.user.attrs.display_name | default "cn" | quote }}
+          to_lower_username: {{ .Values.server.auth.providers.ldap.user.to_lower_username | default true }}
+
+        group:
+          base_dn: {{ .Values.server.auth.providers.ldap.group.base_dn | quote }}
+          filter: {{ .Values.server.auth.providers.ldap.group.filter | default "(member={userDN})" | quote }}
+          attr: {{ .Values.server.auth.providers.ldap.group.attr | default "cn" | quote }}
+
+        roles:
+          mapping: {{ toJson (.Values.server.auth.providers.ldap.roles.mapping | default dict) }}
+          default: {{ toJson (.Values.server.auth.providers.ldap.roles.default | default (list)) }}
+{{- end }}

@@ -38,7 +38,7 @@ spec:
       {{- end }}
       containers:
         - name: session-controller
-          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
+          image: {{ include "codespace.operator.image" . }}
           imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
           args:
             - "--metrics-bind-address={{ ternary .Values.operator.metrics.bindAddress "0" (not .Values.operator.metrics.enabled) }}"

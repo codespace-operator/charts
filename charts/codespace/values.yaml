@@ -148,101 +148,72 @@ server:
   # Use operator's service account instead of creating a separate one
   useManagerServiceAccount: false
 
-  session:
-    ttlMinutes: 60
-    cookieName: ""  # optional override
-
   # =============================================================================
   # AUTHENTICATION CONFIGURATION
   # =============================================================================
   auth:
-    # JWT settings
-    
-    # Bootstrap admin account (for initial setup only)
-    bootstrapLoginAllowed: true
-    bootstrapUser: admin
-    bootstrapPassword: ""  # chart generates random if empty
-    
-    # Local user authentication
-    enableLocalLogin: true
-    allowTokenParam: false  # NOT recommended for production
-    
+    file: ""           # if set, pod points to this rendered file, the config below defaults to creating /etc/codespace-operator/auth/auth.yaml
     manager:
-      jwtSecret: ""  # set for stable upgrades, chart generates random if empty
-      authPath: ""        # default: /auth
-      authLogoutPath: ""  # default: /auth/logout
-      sameSite: "Lax"     # None, Lax, Strict
-      allowTokenParam: false  # NOT recommended for production
-      sessionTTL: "1h" # 1h30m
-      cookieName: CODESPACE
+      auth_path: /auth
+      auth_logout_path: /auth/logout
+      jwt_secret: ""
+      session_cookie_name: CODESPACE_SESSION
+      session_ttl: 60m
+      same_site: lax               # lax | strict | none
+      absolute_session_max: 24h
+      allow_token_param: false
+
     providers:
       local:
         enabled: true
-        bootstrapLoginAllowed: false
-        bootstrapUser: ""
-        bootstrapPassword: ""  # ignored if enableLocalLogin is false
-
-
-        # =============================================================================
-        # LOCAL USER ACCOUNTS (when enableLocalLogin is true)
-        # =============================================================================
+        users_path: /etc/codespace-operator/local-users.yaml
+        bootstrap:
+          allowed: false
+          user: ""
+          password: ""
         localUsers:
-          # Generate password hash using: htpasswd -nbBC 12 username 'password' | cut -d: -f2
-          # Or: openssl passwd -6 "password"
-          users:
-            - username: admin
-              email: admin@localhost
-              passwordHash: $2y$12$WaNTyvF.8Z0EIpRDGj0iMO3VbWMZRXQw7CxnytkzPJ55ZuktSZiHq # "password"
-            - username: alice
-              email: alice@example.com
-              passwordHash: $2y$12$wXq3k5ef11BHOvWyThMPhOi0izkZ1O8Ut18xyD8b479MbmP6X/Agq # "password"
-            - username: bob
-              email: bob@example.com
-              passwordHash: $2y$12$saPK7P3.sQTcHORPNku8h.JwDoznn1CSbQa1vZ6laCYYFNgMPovYy # "password"
-
-
-      # OIDC/OAuth2 settings
+          - username: alice
+            email: alice@codespace.test
+            passwordHash: $2y$12$ZvPoFzmBDe3mnV2AoU5dZeO/AqZogc2fsyfg3nfm14Djg6p3qbp9K
       oidc:
         enabled: false
-        issuerURL: ""  # e.g. https://dev-123456.okta.com
-        clientID: ""
-        clientSecret: ""
-        redirectURL: ""  # e.g. https://your.host/auth/callback
+        issuer_url: ""
+        client_id: ""
+        client_secret: ""
+        redirect_url: ""
         scopes: [openid, profile, email]
-        insecureSkipVerify: false
+        insecure_skip_verify: false
 
-
-      # LDAP settings
       ldap:
-        enabled: false
-        configMapName: ""
+        enabled: true
         url: ldap://openldap.ldap.svc.cluster.local:389
-        startTLS: false                 # dev only
-        insecureSkipVerify: true        # dev only
-        bindDN: cn=admin,dc=codespace,dc=test
-        bindPassword: ""                #
-        # User lookup
-        userDNTemplate: ""              # optional (e.g., uid={username},ou=people,dc=...,dc=...)
-        userBaseDN: ou=people,dc=codespace,dc=test
-        userFilter: (|(uid={username})(mail={username}))"
-        usernameAttr: uid
-        emailAttr: mail
-        displayNameAttr: cn
-        toLowerUsername: true
+        start_tls: false
+        insecure_skip_verify: true
+        bind_dn: cn=admin,dc=codespace,dc=test
+        bind_password: ""
 
-        # Group lookup
-        groupBaseDN: ou=groups,dc=codespace,dc=test
-        groupFilter: (member={dn})    # {dn} expands to the user DN
-        groupAttr: cn
+        user:
+          base_dn: ou=people,dc=codespace,dc=test
+          filter: (|(uid={username})(mail={username}))
+          dn_template: ""
+          attrs:
+            username: uid
+            email: mail
+            display_name: cn
+          to_lower_username: true
 
-        # Role mapping; you can also rely on Casbin canonical subject mapping #? Is this a simple role rename from the eyes of RBAC casbin?
-        roleMapping:
-          "codespace-operator:admin":  ["admin"]
-          "codespace-operator:editor": ["editor"]
-          "codespace-operator:viewer": ["viewer"]
+        group:
+          base_dn: ou=groups,dc=codespace,dc=test
+          # NOTE: new contract requires {userDN}, not {dn}
+          filter: (member={userDN})
+          attr: cn
 
-        # Optional fallback if user has no matching groups (leave empty to disable)
-        defaultRoles: ["viewer"]
+        roles:
+          mapping:
+            "codespace-operator:admin":  ["admin"]
+            "codespace-operator:editor": ["editor"]
+            "codespace-operator:viewer": ["viewer"]
+          default: ["viewer"]
 
 
   # =============================================================================

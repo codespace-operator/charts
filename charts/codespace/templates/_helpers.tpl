@@ -1,5 +1,18 @@
 {{/*
 ================================================================================
+IMAGE TAG HELPERS
+================================================================================
+*/}}
+
+{{- define "codespace.operator.image" -}}
+{{ .Values.operator.image.repository }}:{{ default .Chart.AppVersion .Values.operator.image.tag }}
+{{- end -}}
+
+{{- define "codespace.server.image" -}}
+{{ .Values.server.image.repository }}:{{ default .Chart.AppVersion .Values.server.image.tag }}
+{{- end -}}
+{{/*
+================================================================================
 BASE NAMING FUNCTIONS
 ================================================================================
 */}}
