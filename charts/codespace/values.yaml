@@ -171,10 +171,12 @@ server:
           allowed: false
           user: ""
           password: ""
+        # This value is not canonical to auth.yaml!
         localUsers:
-          - username: alice
-            email: alice@codespace.test
-            passwordHash: $2y$12$ZvPoFzmBDe3mnV2AoU5dZeO/AqZogc2fsyfg3nfm14Djg6p3qbp9K
+          users:
+            - username: alice
+              email: alice@codespace.test
+              passwordHash: $2y$12$ZvPoFzmBDe3mnV2AoU5dZeO/AqZogc2fsyfg3nfm14Djg6p3qbp9K
       oidc:
         enabled: false
         issuer_url: ""
@@ -312,36 +314,26 @@ server:
 
       [matchers]
       m = (g(r.sub, p.sub) || r.sub == p.sub) && (p.obj == "*"  || r.obj == p.obj) && (p.act == "*"  || regexMatch(r.act, p.act)) && (p.dom == "*"  || keyMatch2(r.dom, p.dom))
-    
+
     # Casbin policy rules
     policy: |
-      # =============================================================================
-      # ROLE MAPPINGS - Map external identity providers to internal roles
-      # =============================================================================
-      
-      # OIDC/OAuth2 role mappings (adjust based on your IdP)
+      # Role inheritance - Map external OIDC roles to internal roles
       g, codespace-operator:admin, admin
       g, codespace-operator:editor, editor  
       g, codespace-operator:viewer, viewer
-      
-      # Example: specific OIDC user mapping
-      # Format: oidc:{issuer-domain}~{path}:{user-id}
-      # p, oidc:idp.example.com~oauth~v2:8f9a2c4d..., session, *, team-alpha, allow
 
-      # LOCAL USER ROLE MAPPINGS
-      g, local:admin, admin
-      g, local:alice, editor
-      g, local:bob, viewer
+      # Example for a single targeted user from an IdP
+      # IssuerID derived from: https://idp.example.com/abcd/efgh
+      # -> idp.example.com~abcd~efgh
+      # p, oidc:idp.example.com~abcd~efgh:8f9a2c...., session, *, team-alpha, allow
 
-      # =============================================================================
-      # ROLE-BASED PERMISSIONS
-      # =============================================================================
-      
-      # Admin: Full system access
+      # Admin permissions (full access everywhere)
       p, admin, *, *, *, allow
-      p, admin, namespaces, *, *, allow
-      
-      # Editor: Full session management
+
+      # p, admin, session, *, *, allow
+      # p, admin, namespaces, *, *, allow
+
+      # Editor permissions (CRUD sessions)
       p, editor, session, get, *, allow
       p, editor, session, list, *, allow
       p, editor, session, watch, *, allow
@@ -349,37 +341,23 @@ server:
       p, editor, session, update, *, allow
       p, editor, session, delete, *, allow
       p, editor, session, scale, *, allow
-      
-      # Viewer: Read-only access
+
+      # Viewer permissions (read-only)
       p, viewer, session, get, *, allow
-      p, viewer, session, list, *, allow
+      p, viewer, session, list, *, allow  
       p, viewer, session, watch, *, allow
 
-      # =============================================================================
-      # USER-SPECIFIC PERMISSIONS
-      # =============================================================================
-      
-      # Local admin user (bootstrap)
+      # Specific user permissions (examples)
       p, local:admin, *, *, *, allow
-
-      # Example local users
       p, local:alice, session, *, *, allow
       p, local:bob, session, *, default, allow
 
-      # =============================================================================
-      # ENVIRONMENT-BASED RESTRICTIONS
-      # =============================================================================
-
-      # Development environment access
+      # Environment-specific restrictions (examples)
       p, developer, session, get, dev-*, allow
       p, developer, session, list, dev-*, allow
       p, developer, session, create, dev-*, allow
       p, developer, session, update, dev-*, allow
-
-      # =============================================================================
-      # DENY POLICIES (Override allows)
-      # =============================================================================
-
-      # Prevent deletion in production environments
-      p, editor, session, delete, prod-*, deny
       p, developer, session, delete, dev-*, deny
+
+      # Deny policies override allows
+      p, editor, session, delete, prod-*, deny
