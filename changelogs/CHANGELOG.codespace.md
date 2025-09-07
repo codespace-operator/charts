@@ -1,3 +1,17 @@
+# [1.2.0](https://github.com/codespace-operator/charts/compare/codespace-v1.1.0...codespace-v1.2.0) (2025-09-07)
+
+
+### Bug Fixes
+
+* **codespace:** bump `appVersion` for breaking changes ([512ab03](https://github.com/codespace-operator/charts/commit/512ab038c9b11d3033f4c2fcb17d4a1492fe5eae))
+* **codespace:** chart to new scheme ([0f5b28c](https://github.com/codespace-operator/charts/commit/0f5b28c27bd96d253474149cf00764182401c566))
+* **server:** initial refactor ([d8aabe3](https://github.com/codespace-operator/charts/commit/d8aabe3cf5e1d0451b0a1efac143d44a8772488a))
+
+
+### Features
+
+* **server:** bump appversion ([6b7ae6a](https://github.com/codespace-operator/charts/commit/6b7ae6aad654b3135277016697d5c16f7a7ad860))
+
 # [1.1.0](https://github.com/codespace-operator/charts/compare/codespace-v1.0.1...codespace-v1.1.0) (2025-09-05)
 
 
