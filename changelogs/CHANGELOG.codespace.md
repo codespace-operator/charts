@@ -1,3 +1,10 @@
+## [1.2.2](https://github.com/codespace-operator/charts/compare/codespace-v1.2.1...codespace-v1.2.2) (2025-09-07)
+
+
+### Bug Fixes
+
+* **codespace:** bump appVersion 2.0.2 ([3b15638](https://github.com/codespace-operator/charts/commit/3b15638f6e3402ce006c6594d0185aa4c40769c5))
+
 ## [1.2.1](https://github.com/codespace-operator/charts/compare/codespace-v1.2.0...codespace-v1.2.1) (2025-09-07)
 
 
