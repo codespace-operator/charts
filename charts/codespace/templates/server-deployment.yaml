@@ -62,6 +62,23 @@ spec:
               value: {{ .Values.server.env.allowOrigin | quote }}
             - name: CODESPACE_SERVER_AUTH_CONFIG_PATH
               value: {{ .Values.server.auth_config_path | default "/etc/codespace-operator/auth/auth.yaml" | quote }}
+            # ============ User Profile Store ============
+            - name: CODESPACE_SERVER_PROFILE_STORE_KIND
+              value: {{ .Values.server.profileStore.kind | default "memory" | quote }}
+            {{- if .Values.server.profileStore.dsn }}
+            - name: CODESPACE_SERVER_PROFILE_STORE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "codespace.server.name" . }}-auth
+                  key: profile-store-dsn
+            {{- end }}
+            {{- if .Values.server.profileStore.token }}
+            - name: CODESPACE_SERVER_PROFILE_STORE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "codespace.server.name" . }}-auth
+                  key: profile-store-token
+            {{- end }}
             # ================ MANAGER (manager.*) ================
             - name: AUTH_MANAGER_JWT_SECRET
               valueFrom:

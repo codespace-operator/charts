@@ -149,6 +149,14 @@ server:
   useManagerServiceAccount: false
 
   # =============================================================================
+  # USER PROFILE STORE
+  # =============================================================================
+  profileStore:
+    kind: memory          # memory | postgres
+    dsn: ""               # e.g. postgres://user:pw@db:5432/app?sslmode=disable  (optional; put here if you want Helm to render it into a Secret)
+    token: ""             # Shared bearer used by controller to connect to server (optional; if set, goes to Secret)
+
+  # =============================================================================
   # AUTHENTICATION CONFIGURATION
   # =============================================================================
   auth:
