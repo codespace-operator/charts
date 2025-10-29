@@ -324,3 +324,13 @@ SERVICE ANNOTATIONS (for specific service types)
 {{- toYaml $result -}}
 {{- end }}
 {{- end -}}
+
+{{/*
+================================================================================
+NETWORK HELPERS
+================================================================================
+*/}}
+
+{{- define "codespace.server.internalURL" -}}
+{{- printf "http://%s.%s.svc.cluster.local:%v" (include "codespace.server.serviceName" .) .Release.Namespace .Values.server.service.port -}}
+{{- end -}}

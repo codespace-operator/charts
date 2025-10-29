@@ -64,15 +64,15 @@ spec:
               value: {{ .Values.server.auth_config_path | default "/etc/codespace-operator/auth/auth.yaml" | quote }}
             # ============ User Profile Store ============
             - name: CODESPACE_SERVER_PROFILE_STORE_KIND
-              value: {{ .Values.server.profileStore.kind | default "memory" | quote }}
-            {{- if .Values.server.profileStore.dsn }}
+              value: {{ .Values.profileStore.kind | default "memory" | quote }}
+            {{- if .Values.profileStore.dsn }}
             - name: CODESPACE_SERVER_PROFILE_STORE_DSN
               valueFrom:
                 secretKeyRef:
                   name: {{ include "codespace.server.name" . }}-auth
                   key: profile-store-dsn
             {{- end }}
-            {{- if .Values.server.profileStore.token }}
+            {{- if .Values.profileStore.token }}
             - name: CODESPACE_SERVER_PROFILE_STORE_TOKEN
               valueFrom:
                 secretKeyRef:

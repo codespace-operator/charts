@@ -26,12 +26,25 @@ podAnnotations: {}
   # fluentd/parser: json
 
 # =============================================================================
+# USER PROFILE STORE
+# =============================================================================
+profileStore:
+  # What backs user profiles for the whole stack (the server reads/writes this)
+  # kind: postgres | memory
+  kind: memory
+  dsn: ""              # e.g. postgres://user:pw@postgres:5432/app?sslmode=disable
+  token: devtoken      # shared bearer for operator -> server calls (only used when operator mode=http)
+
+# =============================================================================
 # OPERATOR CONFIGURATION
 # =============================================================================
 operator:
   enabled: true
   replicaCount: 1
-
+  # How the operator reads the profile:
+  # | http      -> call the server (recommended default)
+  # | postgres  -> read DB directly (server not required)
+  profileStoreMode: http
   # Component-specific labels (merged with global labels)
   labels: {}
     # tier: control-plane
@@ -94,6 +107,16 @@ operator:
   enableHTTP2: false
   extraArgs: []
 
+  init:
+    image: alpine/git:2.45.2
+    user: 1000
+    group: 1000
+    # Extra env the controller injects into the init container (key/value)
+    extraEnv: {}
+      # HTTP_PROXY: http://proxy.internal:3128
+      # NO_PROXY: kube.local,svc.cluster.local
+
+
   resources:
     limits: {}
     requests:
@@ -147,14 +170,6 @@ server:
 
   # Use operator's service account instead of creating a separate one
   useManagerServiceAccount: false
-
-  # =============================================================================
-  # USER PROFILE STORE
-  # =============================================================================
-  profileStore:
-    kind: memory          # memory | postgres
-    dsn: ""               # e.g. postgres://user:pw@db:5432/app?sslmode=disable  (optional; put here if you want Helm to render it into a Secret)
-    token: ""             # Shared bearer used by controller to connect to server (optional; if set, goes to Secret)
 
   # =============================================================================
   # AUTHENTICATION CONFIGURATION

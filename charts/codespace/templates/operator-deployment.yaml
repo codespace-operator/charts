@@ -40,6 +40,44 @@ spec:
         - name: session-controller
           image: {{ include "codespace.operator.image" . }}
           imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
+          env:
+            - name: CODESPACE_CONTROLLER_INIT_IMAGE
+              value: {{ .Values.operator.init.image | quote }}
+            - name: CODESPACE_CONTROLLER_INIT_USER
+              value: {{ .Values.operator.init.user | quote }}
+            - name: CODESPACE_CONTROLLER_INIT_GROUP
+              value: {{ .Values.operator.init.group | quote }}
+            {{- range $k, $v := .Values.operator.init.extraEnv }}
+            - name: {{ printf "CODESPACE_CONTROLLER_INIT_EXTRA_ENV__%s" ($k | upper | replace "-" "_" ) }}
+              value: {{ $v | quote }}
+            {{- end }}
+            # -------- Profile store mode for operator --------
+            - name: CODESPACE_CONTROLLER_PROFILE_STORE_KIND
+              value: {{ ternary "http" "postgres" (eq .Values.operator.profileStoreMode "http") | quote }}
+
+            {{- if eq .Values.operator.profileStoreMode "http" }}
+            # Operator talks to the server (baseURL + shared token)
+            - name: CODESPACE_CONTROLLER_PROFILE_STORE_BASE_URL
+              value: {{ include "codespace.server.internalURL" . | quote }}
+            {{- if .Values.profileStore.token }}
+            - name: CODESPACE_CONTROLLER_PROFILE_STORE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "codespace.operator.name" . }}
+                  key: profile-store-token
+            {{- end }}
+            {{- end }}
+
+            {{- if eq .Values.operator.profileStoreMode "postgres" }}
+            # Operator reads DB directly (same DSN as server)
+            {{- if .Values.profileStore.dsn }}
+            - name: CODESPACE_CONTROLLER_PROFILE_STORE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "codespace.operator.name" . }}
+                  key: profile-store-dsn
+            {{- end }}
+            {{- end }}
           args:
             - "--metrics-bind-address={{ ternary .Values.operator.metrics.bindAddress "0" (not .Values.operator.metrics.enabled) }}"
             - "--metrics-secure={{ ternary "true" "false" .Values.operator.metrics.secure }}"
